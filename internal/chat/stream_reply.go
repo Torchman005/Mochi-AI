@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -82,11 +84,7 @@ func (s *streamingSentencer) drain(force bool) []string {
 	return parts
 }
 
-// trimSentencePart 去掉片段末尾的逗号类字符，避免 GPT-SoVITS 对「带尾随逗号的短片段」过度切分而哼声
-// （如「这一声主人，」会被哼成轻哼；去掉尾随逗号成「这一声主人」则能正常读出）。
-func trimSentencePart(part string) string {
-	return strings.TrimRight(strings.TrimSpace(part), "，、；,;")
-}
+// trimSentencePart 与 isSentenceBoundary / splitReply 等同属回复文本纯函数，见 reply_text.go。
 
 // refineSentenceEmotion 返回某句应下发的离散情绪：内容带明显情绪、与上次不同且非中性时才返回，
 // 否则返回空串（表示维持现状）。用于「表情随台词走」的逐句微调，避免频繁闪烁。
@@ -96,6 +94,55 @@ func refineSentenceEmotion(part, lastEmotion string) string {
 		return ""
 	}
 	return inferred
+}
+
+// ThinkingPause 计算「首句之前的反应停顿」时长（毫秒）。
+//
+// 设计意图：真人听到问题后存在自然的思考间隙（约 0.3–1.2s），而零延迟会造成
+// "终端回显"式的机器感。将停顿限制在**首句之前**，后续句子保持流式节奏，
+// 从而既有人味又不牺牲"边说边生成"的流水线收益。
+//
+// 语义：
+//   - minMs/maxMs 均 ≤ 0 → 返回 0（不启用，行为与旧版一致）
+//   - maxMs < minMs → 归一化为与 minMs 相等（避免非法区间产生随机负值）
+//   - r 传入 [0,1) 的随机数；越界会被夹到 [0,1)
+func ThinkingPause(minMs, maxMs int, r float64) time.Duration {
+	if minMs <= 0 && maxMs <= 0 {
+		return 0
+	}
+	if minMs < 0 {
+		minMs = 0
+	}
+	if maxMs < minMs {
+		maxMs = minMs
+	}
+	if r < 0 {
+		r = 0
+	}
+	if r >= 1 {
+		// 把越界随机数折回 [0,1)，保持行为可预期。
+		r = r - float64(int(r))
+	}
+	span := maxMs - minMs
+	ms := minMs
+	if span > 0 {
+		ms += int(float64(span) * r)
+	}
+	return time.Duration(ms) * time.Millisecond
+}
+
+// waitThinkingPause 在首句之前等待一段思考停顿；ctx 取消（用户打断）时立即返回，
+// 避免打断后仍被延迟阻塞。
+func waitThinkingPause(ctx context.Context, pause time.Duration) {
+	if pause <= 0 {
+		return
+	}
+	timer := time.NewTimer(pause)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	}
 }
 
 // streamReply 流式生成回复：边生成边按完整句子 emit + 持久化，降低「首句」延迟。
@@ -121,7 +168,25 @@ func (s *Service) streamReply(
 	totalRunes := 0
 	lastEmotion := decision.Emotion
 
+	// 反应停顿：只在首个片段下发之前等待一次（结构化 dialog 与 flat-text 回退共用）。
+	// 使用 Once 保证无论哪条路径先产出内容，停顿都只发生一次。
+	var pauseOnce sync.Once
+	applyThinkingPause := func() {
+		pauseOnce.Do(func() {
+			pause := ThinkingPause(
+				replyer.cfg.ThinkingPauseMinMs,
+				replyer.cfg.ThinkingPauseMaxMs,
+				rand.Float64(),
+			)
+			if pause > 0 {
+				slog.Info("[tts] thinking pause", "pause_ms", pause.Milliseconds())
+			}
+			waitThinkingPause(ctx, pause)
+		})
+	}
+
 	flushPart := func(part string) error {
+		applyThinkingPause()
 		if replyer.cfg.MaxReplyChars > 0 && totalRunes+len([]rune(part)) > replyer.cfg.MaxReplyChars {
 			// 超过回复长度上限：优雅截断（不抛错、不中断整轮），保留已产出的句子。
 			return errReplyTooLong
@@ -184,6 +249,7 @@ func (s *Service) streamReply(
 		if speech == "" {
 			return nil
 		}
+		applyThinkingPause()
 		if replyer.cfg.MaxReplyChars > 0 && totalRunes+len([]rune(speech)) > replyer.cfg.MaxReplyChars {
 			return errReplyTooLong
 		}

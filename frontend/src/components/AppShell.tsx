@@ -104,6 +104,7 @@ type WebSidebarProps = {
     activeView: ViewKey;
     agentStatus: string;
     agentProvider: string;
+    sidebarVisible?: boolean;
     onNewConversation: () => void;
     onSelectConversation: (id: string) => void;
     onSelectView: (view: ViewKey) => void;
@@ -114,7 +115,7 @@ export function WebSidebar(props: WebSidebarProps) {
     const activeNav = WEB_NAV.find((item) => item.key === props.activeView);
 
     return (
-        <aside className="web-sidebar">
+        <aside className={`web-sidebar${props.sidebarVisible ? ' sidebar-visible' : ''}`}>
             <div className="web-brand">
                 <span className="web-brand-logo">Y</span>
                 <div className="web-brand-text">

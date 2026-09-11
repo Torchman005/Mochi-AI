@@ -258,3 +258,29 @@ export function inferAvatarPerformance(text: string, emotion: string, isSpeaking
         gesture: 'none',
     };
 }
+
+/**
+ * 从一组时间值里找出最早的合法时间（ISO 字符串）。
+ *
+ * 用途：状态岛的「陪伴天数」需要**首次对话时间**。会话列表是按 `updated_at DESC` 排序的，
+ * 因此不能简单地取首项或末项（续聊旧会话会让它在列表里靠前），必须真正求最小值。
+ * 解析失败的值一律忽略；都没有合法值返回 undefined（调用方据此隐藏该项而不是显示 NaN）。
+ */
+export function earliestTimestamp(values: unknown[]): string | undefined {
+    let earliestMs = Number.POSITIVE_INFINITY;
+    let earliestRaw: string | undefined;
+    for (const value of values) {
+        if (value === null || value === undefined || value === '') {
+            continue;
+        }
+        const ms = new Date(value as string).getTime();
+        if (!Number.isFinite(ms)) {
+            continue;
+        }
+        if (ms < earliestMs) {
+            earliestMs = ms;
+            earliestRaw = String(value);
+        }
+    }
+    return earliestRaw;
+}

@@ -38,7 +38,9 @@
     "min_reply_interval_seconds": 0,
     "max_reply_chars": 1000,
     "split_max_chars": 90,
-    "allow_typo_simulation": false
+    "allow_typo_simulation": false,
+    "thinking_pause_min_ms": 250,
+    "thinking_pause_max_ms": 900
   },
   "memory": {
     "max_turns": 20,

@@ -1,29 +1,68 @@
-﻿/* ===== Yuyu Mind 前端样式（Soft Glass 版） ===== */
+/* ===== Yuyu Mind 前端样式（Soft Glass 版） ===== */
 
 :root {
-    --bg: #fbf7fb;
-    --bg-2: #f3f7fb;
+    /* —— 基底：暖白纸感，避免纯白刺眼 —— */
+    --bg: #f7f6f8;
+    --bg-2: #f2f1f4;
     --surface: rgba(255, 255, 255, 0.72);
-    --surface-2: #f8edf4;
-    --surface-3: #edf6fa;
-    --text: #33283d;
-    --text-2: #756d7e;
-    --accent: #c978ad;
-    --accent-2: #78a9d6;
-    --accent-3: #82bfa9;
-    --accent-soft: rgba(201, 120, 173, 0.13);
-    --border: rgba(217, 200, 214, 0.76);
-    --danger: #c65c74;
-    --warning: #c99254;
-    --shadow: 0 24px 56px rgba(77, 64, 82, 0.14);
-    --shadow-soft: 0 12px 30px rgba(77, 64, 82, 0.1);
-    --glass: rgba(255, 255, 255, 0.56);
-    --glass-strong: rgba(255, 255, 255, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.82);
-    --radius: 18px;
-    --scrollbar-thumb: #d9b8cc;
-    --scrollbar-thumb-hover: #c978ad;
-    --scrollbar-track: rgba(248, 237, 244, 0.62);
+    --surface-2: #f4eef2;
+    --surface-3: #eef2f6;
+
+    /* —— 文本：石墨紫灰，比纯黑柔和、比灰更有温度 —— */
+    --text: #2b2732;
+    --text-2: #6f6a78;
+
+    /* —— 主色：雾玫瑰（低饱和，克制而柔），辅助为灰蓝与雾青 —— */
+    --accent: #b06e93;
+    --accent-strong: #97587c;
+    --accent-2: #7d9ec0;
+    --accent-3: #7fa99b;
+
+    /* —— 主色的透明派生（统一替代散落的 rgba 硬编码）—— */
+    --accent-soft: rgba(176, 110, 147, 0.1);
+    --accent-soft-2: rgba(176, 110, 147, 0.16);
+    --accent-line: rgba(176, 110, 147, 0.28);
+    --accent-glow: rgba(176, 110, 147, 0.18);
+
+    /* —— 边框/分割线：中性带一点暖调，不抢戏 —— */
+    --border: rgba(120, 112, 130, 0.2);
+    --border-strong: rgba(120, 112, 130, 0.34);
+
+    /* —— 语义色：低饱和但不失辨识度 —— */
+    --success: #5f9e86;
+    --warning: #b98f56;
+    --danger: #b3606e;
+    --success-soft: rgba(95, 158, 134, 0.12);
+    --success-line: rgba(95, 158, 134, 0.3);
+    --warning-soft: rgba(185, 143, 86, 0.14);
+    --warning-line: rgba(185, 143, 86, 0.32);
+    --danger-soft: rgba(179, 96, 110, 0.12);
+    --danger-line: rgba(179, 96, 110, 0.3);
+
+    /* —— 阴影：统一中性色（高级感来自层次，不来自彩色光晕）—— */
+    --shadow: 0 20px 44px rgba(43, 39, 50, 0.1);
+    --shadow-soft: 0 10px 26px rgba(43, 39, 50, 0.07);
+    --shadow-lift: 0 14px 30px rgba(43, 39, 50, 0.12);
+
+    /* —— 玻璃层 —— */
+    --glass: rgba(255, 255, 255, 0.5);
+    --glass-strong: rgba(255, 255, 255, 0.74);
+    --glass-border: rgba(255, 255, 255, 0.8);
+
+    --radius: 16px;
+
+    /* —— 交互：统一的时长/缓动，带来"丝滑"的一致手感 —— */
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-fast: 120ms;
+    --dur: 180ms;
+    --dur-slow: 260ms;
+    --ring: 0 0 0 3px rgba(176, 110, 147, 0.26);
+
+    /* —— 滚动条：中性细条，不喧哗 —— */
+    --scrollbar-thumb: rgba(120, 112, 130, 0.3);
+    --scrollbar-thumb-hover: rgba(120, 112, 130, 0.45);
+    --scrollbar-track: transparent;
 }
 
 * {
@@ -37,7 +76,7 @@ body {
     font-family: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
     color: var(--text);
     background:
-        linear-gradient(135deg, rgba(201, 120, 173, 0.08), rgba(120, 169, 214, 0.09) 44%, rgba(130, 191, 169, 0.06)),
+        linear-gradient(135deg, var(--accent-soft), rgba(120, 169, 214, 0.09) 44%, rgba(130, 191, 169, 0.06)),
         var(--bg);
     -webkit-font-smoothing: antialiased;
     scrollbar-width: thin;
@@ -72,7 +111,7 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-    outline: 3px solid rgba(67, 183, 255, 0.38);
+    outline: 3px solid rgba(125, 158, 192, 0.14);
     outline-offset: 2px;
 }
 
@@ -110,10 +149,7 @@ body.pet-window {
     grid-template-rows: auto 1fr auto;
     padding: 20px 24px;
     overflow: hidden;
-    background:
-        linear-gradient(135deg, rgba(255, 240, 247, 0.82), rgba(238, 249, 255, 0.92)),
-        repeating-linear-gradient(90deg, rgba(255, 94, 168, 0.08) 0 1px, transparent 1px 42px),
-        repeating-linear-gradient(0deg, rgba(67, 183, 255, 0.08) 0 1px, transparent 1px 42px);
+    background: linear-gradient(150deg, #fdfbfd, #f4f5f9 62%, #f6f3f7);
 }
 
 .pet-mode .stage {
@@ -135,13 +171,16 @@ body.pet-window {
 
 .status-bar,
 .chat-panel header,
-.chat-panel .header-title {
+.chat-panel .header-title,
+.room-view .room-stage-actions {
     -webkit-app-region: drag;
     --wails-draggable: drag;
 }
 
 .chat-panel header button,
-.chat-panel header .pill {
+.chat-panel header .pill,
+.room-view .room-stage-actions button,
+.room-view .room-stage-actions .pill {
     -webkit-app-region: no-drag;
     --wails-draggable: no-drag;
 }
@@ -160,21 +199,21 @@ body.pet-window {
 }
 
 .agent-online {
-    background: #e7fff4;
-    color: #147a59;
-    border-color: #bdf2db;
+    background: var(--success-soft);
+    color: var(--success);
+    border-color: var(--success-line);
 }
 
 .agent-starting {
-    background: #fff5d9;
-    color: #97670e;
-    border-color: #ffe0a2;
+    background: var(--warning-soft);
+    color: var(--warning);
+    border-color: var(--warning-line);
 }
 
 .agent-offline {
-    background: #ffe8f0;
-    color: #ac294f;
-    border-color: #ffc4d5;
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-color: var(--danger-line);
 }
 
 .stage-tools {
@@ -604,7 +643,7 @@ h1 {
 
 .ghost-button:hover {
     background: var(--accent-soft);
-    border-color: rgba(255, 94, 168, 0.42);
+    border-color: var(--accent-line);
 }
 
 .ghost-button:disabled {
@@ -639,8 +678,8 @@ h1 {
 }
 
 .window-close:hover {
-    background: #ffe9e6;
-    border-color: #f3c7c0;
+    background: var(--danger-soft);
+    border-color: var(--danger-line);
 }
 
 .message-feed {
@@ -652,7 +691,7 @@ h1 {
     gap: 12px;
     padding: 4px 6px 12px 2px;
     scrollbar-width: thin;
-    scrollbar-color: #cbd6d1 transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .message-feed::-webkit-scrollbar {
@@ -660,7 +699,7 @@ h1 {
 }
 
 .message-feed::-webkit-scrollbar-thumb {
-    background: #cbd6d1;
+    background: var(--scrollbar-thumb);
     border-radius: 999px;
 }
 
@@ -698,7 +737,7 @@ h1 {
 
 .message.user {
     align-self: flex-end;
-    background: linear-gradient(135deg, var(--accent), #ff8cc7);
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
     color: #ffffff;
     border-bottom-right-radius: 6px;
 }
@@ -707,7 +746,7 @@ h1 {
     align-self: flex-start;
     background: linear-gradient(135deg, #ffffff, var(--surface-3));
     color: var(--text);
-    border: 1px solid rgba(67, 183, 255, 0.18);
+    border: 1px solid rgba(125, 158, 192, 0.14);
     border-bottom-left-radius: 6px;
 }
 
@@ -725,9 +764,9 @@ h1 {
 
 .error {
     flex-shrink: 0;
-    color: #8f2f24;
-    background: #ffe9e6;
-    border: 1px solid #f3c7c0;
+    color: var(--danger);
+    background: var(--danger-soft);
+    border: 1px solid var(--danger-line);
     padding: 10px 12px;
     border-radius: 10px;
     font-size: 13px;
@@ -783,15 +822,15 @@ h1 {
 
 .composer .voice-listening {
     background: #ffe5f1;
-    color: #b91f6b;
-    border-color: #ffb9d7;
+    color: var(--accent-strong);
+    border-color: var(--accent-line);
 }
 
 .composer .voice-thinking,
 .composer .voice-speaking {
-    background: #fff5d9;
-    color: #97670e;
-    border-color: #ffe0a2;
+    background: var(--warning-soft);
+    color: var(--warning);
+    border-color: var(--warning-line);
 }
 
 .composer button:disabled {
@@ -897,7 +936,7 @@ h1 {
 .plugin-perms {
     font-size: 11px;
     color: #8a6a1f;
-    background: #fff3d6;
+    background: var(--warning-soft);
     padding: 2px 6px;
     border-radius: 6px;
     align-self: flex-start;
@@ -1036,22 +1075,35 @@ h1 {
 
 /* ===== Web 版桌面详情页（Soft Glass）===== */
 .app-shell.web {
-    --bg: #fbf7fb;
-    --bg-2: rgba(255, 255, 255, 0.58);
-    --surface: rgba(255, 255, 255, 0.7);
-    --surface-2: rgba(248, 237, 244, 0.62);
-    --surface-3: rgba(237, 246, 250, 0.64);
-    --border: rgba(217, 200, 214, 0.74);
-    --text: #33283d;
-    --text-2: #756d7e;
-    --accent: #c978ad;
-    --accent-2: #78a9d6;
-    --accent-3: #82bfa9;
-    --accent-soft: rgba(201, 120, 173, 0.13);
+    /* 与 :root 保持同一套雾玫瑰/石墨体系，此处仅按玻璃层需求微调不透明度 */
+    --bg: #f7f6f8;
+    --bg-2: rgba(255, 255, 255, 0.56);
+    --surface: rgba(255, 255, 255, 0.72);
+    --surface-2: rgba(244, 238, 242, 0.6);
+    --surface-3: rgba(238, 242, 246, 0.6);
+    --border: rgba(120, 112, 130, 0.2);
+    --text: #2b2732;
+    --text-2: #6f6a78;
+    --accent: #b06e93;
+    --accent-strong: #97587c;
+    --accent-2: #7d9ec0;
+    --accent-3: #7fa99b;
+    --accent-soft: rgba(176, 110, 147, 0.1);
+    --accent-soft-2: rgba(176, 110, 147, 0.16);
+    --accent-line: rgba(176, 110, 147, 0.28);
+    --accent-glow: rgba(176, 110, 147, 0.18);
+    --border-strong: rgba(120, 112, 130, 0.34);
+    --success: #5f9e86;
+    --warning: #b98f56;
+    --danger: #b3606e;
+    --success-soft: rgba(95, 158, 134, 0.12);
+    --success-line: rgba(95, 158, 134, 0.3);
+    --warning-soft: rgba(185, 143, 86, 0.14);
+    --warning-line: rgba(185, 143, 86, 0.32);
+    --danger-soft: rgba(179, 96, 110, 0.12);
+    --danger-line: rgba(179, 96, 110, 0.3);
     display: block;
-    background:
-        linear-gradient(135deg, rgba(201, 120, 173, 0.07), rgba(120, 169, 214, 0.08) 48%, rgba(130, 191, 169, 0.06)),
-        var(--bg);
+    background: var(--bg);
     color: var(--text);
 }
 .app-shell.web .web-shell {
@@ -1065,21 +1117,19 @@ h1 {
 }
 .app-shell.web .web-sidebar {
     position: relative;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 240, 247, 0.9)),
-        repeating-linear-gradient(135deg, rgba(255, 94, 168, 0.07) 0 1px, transparent 1px 22px);
-    border-right: 1px solid rgba(244, 207, 224, 0.9);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(249, 247, 250, 0.84));
+    border-right: 1px solid var(--border);
     padding: 16px 12px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    box-shadow: 18px 0 40px rgba(255, 94, 168, 0.1);
+    box-shadow: 18px 0 40px var(--accent-soft);
 }
 .app-shell.web .web-sidebar::before {
     position: absolute;
     top: 18px;
     right: 16px;
-    color: rgba(255, 94, 168, 0.32);
+    color: var(--accent-line);
     content: "✦";
     font-size: 28px;
     pointer-events: none;
@@ -1089,7 +1139,7 @@ h1 {
     align-items: center;
     gap: 10px;
     padding: 10px 10px 16px;
-    border-bottom: 1px dashed rgba(255, 94, 168, 0.28);
+    border-bottom: 1px dashed var(--accent-glow);
 }
 .app-shell.web .web-brand-logo {
     display: inline-grid;
@@ -1097,11 +1147,11 @@ h1 {
     width: 42px;
     height: 42px;
     border-radius: 14px;
-    background: linear-gradient(135deg, #ff7eba, #43b7ff);
+    background: linear-gradient(135deg, var(--accent), #43b7ff);
     color: #ffffff;
     font-size: 20px;
     font-weight: 900;
-    box-shadow: 0 10px 22px rgba(255, 94, 168, 0.25);
+    box-shadow: 0 10px 22px var(--accent-glow);
 }
 .app-shell.web .web-brand-text strong { display: block; color: var(--text); }
 .app-shell.web .web-brand-text small { color: var(--text-2); }
@@ -1122,8 +1172,8 @@ h1 {
 }
 .app-shell.web .web-nav-item:hover { background: rgba(255, 255, 255, 0.74); color: var(--text); }
 .app-shell.web .web-nav-item.active {
-    background: linear-gradient(90deg, rgba(255, 94, 168, 0.18), rgba(67, 183, 255, 0.12));
-    color: #c92875;
+    background: linear-gradient(90deg, var(--accent-glow), rgba(125, 158, 192, 0.14));
+    color: var(--accent-strong);
     box-shadow: inset 3px 0 0 var(--accent);
 }
 .app-shell.web .web-nav-icon { font-size: 16px; }
@@ -1175,14 +1225,14 @@ h1 {
     justify-content: center;
     width: 100%;
     padding: 9px 12px;
-    border: 1px solid rgba(255, 94, 168, 0.28);
+    border: 1px solid var(--accent-glow);
     border-radius: 999px;
-    background: linear-gradient(90deg, rgba(255, 94, 168, 0.16), rgba(67, 183, 255, 0.12));
-    color: #b91f6b;
+    background: linear-gradient(90deg, var(--accent-glow), rgba(125, 158, 192, 0.14));
+    color: var(--accent-strong);
     font-size: 14px;
     cursor: pointer;
 }
-.app-shell.web .new-conversation:hover { background: linear-gradient(90deg, rgba(255, 94, 168, 0.24), rgba(67, 183, 255, 0.2)); }
+.app-shell.web .new-conversation:hover { background: linear-gradient(90deg, var(--accent-glow), rgba(125, 158, 192, 0.14)); }
 .app-shell.web .conversation-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; max-height: 32vh; }
 .app-shell.web .conversation-item {
     display: block;
@@ -1196,7 +1246,7 @@ h1 {
     cursor: pointer;
 }
 .app-shell.web .conversation-item:hover { background: rgba(255, 255, 255, 0.72); color: var(--text); }
-.app-shell.web .conversation-item.active { background: rgba(67, 183, 255, 0.13); color: #1377b2; }
+.app-shell.web .conversation-item.active { background: rgba(125, 158, 192, 0.14); color: #1377b2; }
 .app-shell.web .conversation-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-shell.web .empty-state.small { font-size: 12px; color: var(--text-2); }
 .app-shell.web .skins-view { display: flex; flex-direction: column; gap: 16px; }
@@ -1205,9 +1255,7 @@ h1 {
     height: 70vh;
     border-radius: 14px;
     overflow: hidden;
-    background:
-        linear-gradient(145deg, rgba(255, 240, 247, 0.8), rgba(237, 249, 255, 0.9)),
-        repeating-linear-gradient(90deg, rgba(255, 94, 168, 0.08) 0 1px, transparent 1px 44px);
+    background: linear-gradient(150deg, #fdfbfd, #f3f5f9);
 }
 .app-shell.web .skin-preview .speech-bubble { position: absolute; left: 16px; right: 16px; bottom: 56px; }
 .app-shell.web .skin-preview .stage-tools { position: absolute; left: 16px; right: 16px; bottom: 14px; }
@@ -1532,6 +1580,37 @@ h1 {
     background: rgba(77, 141, 232, .08);
 }
 
+.app-shell.web .music-control-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    background: rgba(148, 163, 184, .06);
+}
+
+.app-shell.web .music-control-input {
+    flex: 1 1 260px;
+    min-width: 220px;
+    min-height: 34px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+
+.app-shell.web .music-control-box .primary-soft-button {
+    flex: 0 0 auto;
+}
+
+.app-shell.web .music-control-box .plugin-hint {
+    flex-basis: 100%;
+}
+
 .app-shell.web .review-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -1699,22 +1778,17 @@ h1 {
 /* ===== Final theme overrides: soft glass companion ===== */
 .app-shell.web .chat-panel,
 .app-shell.web .web-view {
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 247, 251, 0.78)),
-        repeating-linear-gradient(90deg, rgba(255, 94, 168, .055) 0 1px, transparent 1px 44px),
-        repeating-linear-gradient(0deg, rgba(67, 183, 255, .05) 0 1px, transparent 1px 44px),
-        transparent;
+    /* 去掉网格纹理：高级感靠层次与留白，不靠花纹 */
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(252, 251, 253, 0.72));
 }
 
 .app-shell.web .web-sidebar {
     position: relative;
     width: 260px;
     padding: 18px 12px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(255, 240, 247, .9)),
-        repeating-linear-gradient(135deg, rgba(255, 94, 168, .08) 0 1px, transparent 1px 18px);
-    border-right: 1px solid rgba(244, 207, 224, .95);
-    box-shadow: 18px 0 44px rgba(255, 94, 168, .08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(249, 247, 250, 0.82));
+    border-right: 1px solid var(--border);
+    box-shadow: 14px 0 34px rgba(43, 39, 50, 0.05);
 }
 
 .app-shell.web .web-brand {
@@ -1735,7 +1809,7 @@ h1 {
     color: white;
     font-weight: 900;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: 0 12px 22px rgba(255, 94, 168, .18);
+    box-shadow: 0 12px 22px var(--accent-glow);
 }
 
 .app-shell.web .web-brand-text strong {
@@ -1755,19 +1829,19 @@ h1 {
     color: #fff;
     font-weight: 800;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: 0 14px 28px rgba(255, 94, 168, .2);
+    box-shadow: var(--shadow-soft);
 }
 
 .app-shell.web .new-conversation:hover {
     transform: translateY(-1px);
-    box-shadow: 0 18px 32px rgba(255, 94, 168, .24);
+    box-shadow: 0 18px 32px var(--accent-glow);
 }
 
 .app-shell.web .sidebar-current {
     padding: 10px 12px;
     border-radius: 14px;
     background: rgba(237, 249, 255, .82);
-    border: 1px solid rgba(67, 183, 255, .18);
+    border: 1px solid rgba(125, 158, 192, 0.14);
 }
 
 .app-shell.web .sidebar-current span {
@@ -1796,8 +1870,8 @@ h1 {
 
 .app-shell.web .conversation-item:hover,
 .app-shell.web .conversation-item.active {
-    color: #b91f6b;
-    background: rgba(255, 94, 168, .12);
+    color: var(--accent-strong);
+    background: var(--accent-soft-2);
 }
 
 .app-shell.web .web-nav {
@@ -1821,10 +1895,10 @@ h1 {
 }
 
 .app-shell.web .web-nav-item.active {
-    color: #b91f6b;
-    background: linear-gradient(135deg, rgba(255, 94, 168, .16), rgba(67, 183, 255, .12));
-    border-color: rgba(255, 94, 168, .28);
-    box-shadow: inset 4px 0 0 rgba(255, 94, 168, .62), 0 10px 20px rgba(255, 94, 168, .08);
+    color: var(--accent-strong);
+    background: linear-gradient(135deg, var(--accent-glow), rgba(125, 158, 192, 0.14));
+    border-color: var(--accent-glow);
+    box-shadow: inset 4px 0 0 var(--accent-line), 0 10px 20px var(--accent-soft);
 }
 
 .app-shell.web .web-nav-icon {
@@ -1900,7 +1974,7 @@ h1 {
 
 .app-shell.web .plugin-card.clickable:hover {
     transform: translateY(-3px);
-    border-color: rgba(255, 94, 168, .62);
+    border-color: var(--accent-line);
     background: linear-gradient(135deg, rgba(255,240,247,.98), rgba(237,249,255,.94));
 }
 
@@ -1934,9 +2008,7 @@ h1 {
 .app-shell.web .message-feed {
     padding: 14px;
     border-radius: 18px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, .78), rgba(255, 250, 253, .72)),
-        repeating-linear-gradient(90deg, rgba(67, 183, 255, .05) 0 1px, transparent 1px 32px);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(252, 251, 253, 0.66));
 }
 
 .app-shell.web .message {
@@ -1957,7 +2029,8 @@ h1 {
 .app-shell.web .message.user {
     margin-left: auto;
     border-top-right-radius: 6px;
-    background: linear-gradient(135deg, rgba(255, 94, 168, .92), rgba(123, 95, 255, .9));
+    /* 用户气泡：雾玫瑰到灰蓝的柔渐变（收敛高饱和紫粉） */
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #fff;
 }
 
@@ -1972,8 +2045,8 @@ h1 {
     align-items: center;
     padding: 2px 8px;
     border-radius: 999px;
-    background: rgba(255, 94, 168, .1);
-    color: #b91f6b;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
 }
 
 .app-shell.web .message.user .message-role {
@@ -1982,7 +2055,7 @@ h1 {
 
 .app-shell.web .chat-empty {
     min-height: 180px;
-    border: 1px dashed rgba(255, 94, 168, .34);
+    border: 1px dashed var(--accent-line);
     background: linear-gradient(135deg, rgba(255, 240, 247, .92), rgba(237, 249, 255, .86));
 }
 
@@ -2085,7 +2158,7 @@ h1 {
     display: block;
     min-height: 34px;
     padding: 8px 10px;
-    border: 1px solid rgba(67, 183, 255, .22);
+    border: 1px solid rgba(125, 158, 192, 0.14);
     border-radius: 12px;
     color: #1377b2;
     background: rgba(237, 249, 255, .78);
@@ -2098,7 +2171,7 @@ h1 {
     border-radius: 18px;
     background: rgba(255, 255, 255, .82);
     border: 1px solid rgba(244, 207, 224, .86);
-    box-shadow: 0 12px 26px rgba(255, 94, 168, .08);
+    box-shadow: 0 12px 26px var(--accent-soft);
 }
 
 .app-shell.web .composer input {
@@ -2125,15 +2198,15 @@ h1 {
 
 .app-shell.web .composer button[type="submit"] {
     color: #fff;
-    background: linear-gradient(135deg, var(--accent), #7b5fff);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
     border-color: transparent;
 }
 
 .app-shell.web .text-button[aria-pressed="true"],
 .app-shell.web .voice-listening {
-    color: #b91f6b;
-    background: rgba(255, 94, 168, .14);
-    border-color: rgba(255, 94, 168, .34);
+    color: var(--accent-strong);
+    background: var(--accent-soft-2);
+    border-color: var(--accent-line);
 }
 
 .app-shell.web .plugin-detail-card {
@@ -2148,14 +2221,14 @@ h1 {
     color: #ffffff;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     border: 1px solid rgba(255, 255, 255, .78);
-    box-shadow: 0 10px 20px rgba(255, 94, 168, .18);
+    box-shadow: 0 10px 20px var(--accent-glow);
 }
 
 .app-shell.web .plugin-card-stats span,
 .app-shell.web .plugin-permission-list span {
-    color: #b91f6b;
-    background: rgba(255, 94, 168, .12);
-    border: 1px solid rgba(255, 94, 168, .24);
+    color: var(--accent-strong);
+    background: var(--accent-soft-2);
+    border: 1px solid var(--accent-glow);
 }
 
 .app-shell.web .plugin-section,
@@ -2191,13 +2264,13 @@ h1 {
 .app-shell.web .manual-action-grid button:hover {
     transform: translateY(-2px);
     border-color: var(--accent);
-    background: rgba(255, 94, 168, .1);
+    background: var(--accent-soft);
 }
 
 .app-shell.web .primary-soft-button {
-    color: #b91f6b;
-    background: rgba(255, 94, 168, .14);
-    border-color: rgba(255, 94, 168, .34);
+    color: var(--accent-strong);
+    background: var(--accent-soft-2);
+    border-color: var(--accent-line);
 }
 
 .app-shell.web .danger-soft-button,
@@ -2208,13 +2281,13 @@ h1 {
 }
 
 .app-shell.web .plugin-card-actions .rev-accept {
-    color: #147a59;
+    color: var(--success);
     background: rgba(80, 215, 161, .16);
     border-color: rgba(80, 215, 161, .42);
 }
 
 .app-shell.web .task-review-panel {
-    border-color: rgba(67, 183, 255, .28);
+    border-color: rgba(125, 158, 192, 0.14);
     border-radius: 14px;
     background: rgba(237, 249, 255, .74);
 }
@@ -2226,14 +2299,14 @@ h1 {
 .app-shell.web .log-level {
     padding: 2px 7px;
     border-radius: 999px;
-    background: rgba(255, 94, 168, .1);
+    background: var(--accent-soft);
     text-align: center;
 }
 
 .app-shell.web .plugin-result-box {
     color: #1377b2;
-    background: rgba(67, 183, 255, .12);
-    border-color: rgba(67, 183, 255, .26);
+    background: rgba(125, 158, 192, 0.14);
+    border-color: rgba(125, 158, 192, 0.14);
 }
 
 .app-shell.web .config-editor-textarea,
@@ -2248,7 +2321,7 @@ h1 {
 .app-shell.web .plugin-result {
     background: #21182b;
     color: #fff7fb;
-    border-color: rgba(255, 94, 168, .24);
+    border-color: var(--accent-glow);
 }
 
 .app-shell.web .review-diff .diff-line.add { color: #95f5c7; background: rgba(80, 215, 161, .12); }
@@ -2304,15 +2377,11 @@ h1 {
 
 /* ===== Soft glass correction: calmer color, complete buttons ===== */
 .app-shell.web {
-    background:
-        linear-gradient(145deg, rgba(201, 120, 173, .055), rgba(120, 169, 214, .075) 52%, rgba(130, 191, 169, .045)),
-        #fbf7fb;
+    background: var(--bg);
 }
 
 .app-shell.web .web-shell {
-    background:
-        linear-gradient(120deg, rgba(255, 255, 255, .52), rgba(246, 241, 248, .38)),
-        repeating-linear-gradient(90deg, rgba(120, 169, 214, .035) 0 1px, transparent 1px 56px);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(247, 246, 249, 0.5));
 }
 
 .app-shell.web .web-sidebar,
@@ -2335,21 +2404,19 @@ h1 {
 .app-shell.web .quick-prompts,
 .app-shell.web .side-metrics,
 .app-shell.web .log-entry {
-    background: linear-gradient(145deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .42));
-    border-color: rgba(255, 255, 255, .72);
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.78), rgba(252, 251, 253, 0.56));
+    border-color: rgba(255, 255, 255, 0.7);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, .92),
-        0 16px 38px rgba(77, 64, 82, .1);
-    -webkit-backdrop-filter: blur(18px) saturate(1.18);
-    backdrop-filter: blur(18px) saturate(1.18);
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 14px 32px rgba(43, 39, 50, 0.07);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+    backdrop-filter: blur(20px) saturate(1.1);
 }
 
 .app-shell.web .web-sidebar {
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, .68), rgba(248, 244, 249, .54)),
-        repeating-linear-gradient(135deg, rgba(201, 120, 173, .045) 0 1px, transparent 1px 22px);
-    border-right-color: rgba(220, 207, 219, .72);
-    box-shadow: 16px 0 44px rgba(77, 64, 82, .08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(249, 247, 250, 0.78));
+    border-right-color: var(--border);
+    box-shadow: 14px 0 34px rgba(43, 39, 50, 0.05);
 }
 
 .app-shell.web .web-brand,
@@ -2378,10 +2445,7 @@ h1 {
 
 .app-shell.web .chat-panel,
 .app-shell.web .web-view {
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, .62), rgba(248, 244, 249, .48)),
-        repeating-linear-gradient(90deg, rgba(120, 169, 214, .035) 0 1px, transparent 1px 52px),
-        transparent;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(250, 249, 252, 0.66));
 }
 
 .app-shell.web .chat-panel {
@@ -2391,22 +2455,22 @@ h1 {
 .app-shell.web .new-conversation,
 .app-shell.web .composer button[type="submit"] {
     color: #fff;
-    background: linear-gradient(135deg, #c978ad, #78a9d6);
-    box-shadow: 0 12px 24px rgba(120, 93, 128, .16);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 8px 18px rgba(43, 39, 50, 0.1);
 }
 
 .app-shell.web .web-brand-logo,
 .app-shell.web .plugin-icon,
 .app-shell.web .mini-avatar {
-    background: linear-gradient(135deg, #b987c7, #78a9d6);
-    box-shadow: 0 10px 22px rgba(120, 93, 128, .15);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 8px 18px rgba(43, 39, 50, 0.1);
 }
 
 .app-shell.web .web-nav-item.active {
-    color: #875177;
-    background: linear-gradient(135deg, rgba(201, 120, 173, .13), rgba(120, 169, 214, .12));
-    border-color: rgba(201, 120, 173, .22);
-    box-shadow: inset 4px 0 0 rgba(201, 120, 173, .42), 0 10px 20px rgba(77, 64, 82, .06);
+    color: var(--accent-strong);
+    background: linear-gradient(135deg, var(--accent-soft), rgba(125, 158, 192, 0.1));
+    border-color: var(--accent-line);
+    box-shadow: inset 3px 0 0 var(--accent), 0 8px 18px rgba(43, 39, 50, 0.05);
 }
 
 .app-shell.web .conversation-item:hover,
@@ -2414,16 +2478,18 @@ h1 {
 .app-shell.web .text-button[aria-pressed="true"],
 .app-shell.web .voice-listening,
 .app-shell.web .log-levels .ghost-button.active {
-    color: #875177;
-    background: rgba(201, 120, 173, .12);
-    border-color: rgba(201, 120, 173, .24);
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
 }
 
 .app-shell.web .plugin-card::before,
 .app-shell.web .task-card::before,
 .app-shell.web .info-card::before {
-    background: linear-gradient(180deg, #c978ad, #78a9d6);
-    opacity: .62;
+    /* 卡片顶部高光：细而柔，只作点缀不作装饰 */
+    background: linear-gradient(90deg, var(--accent-soft-2), rgba(255, 255, 255, 0));
+    opacity: 0.5;
+    height: 2px;
 }
 
 .app-shell.web .message {
@@ -2441,7 +2507,7 @@ h1 {
 }
 
 .app-shell.web .message.user {
-    background: linear-gradient(135deg, rgba(201, 120, 173, .86), rgba(120, 169, 214, .86));
+    background: linear-gradient(135deg, var(--accent-soft), rgba(120, 169, 214, .86));
 }
 
 .app-shell.web .message-role,
@@ -2449,8 +2515,8 @@ h1 {
 .app-shell.web .plugin-permission-list span,
 .app-shell.web .log-level {
     color: #875177;
-    background: rgba(201, 120, 173, .1);
-    border-color: rgba(201, 120, 173, .16);
+    background: var(--accent-soft);
+    border-color: var(--accent-soft);
 }
 
 .app-shell.web .quick-prompt-chip,
@@ -2488,7 +2554,7 @@ h1 {
 
 .app-shell.web .primary-soft-button {
     color: #875177;
-    background: rgba(201, 120, 173, .12);
+    background: var(--accent-soft);
 }
 
 .app-shell.web .danger-soft-button,
@@ -2777,4 +2843,1075 @@ body,
     .app-shell.web .workspace-field {
         grid-template-columns: 1fr;
     }
+}
+
+/* ===== Room 抽屉浮层（模型/插件/任务/日志/设置） =====
+   设计：房间常驻为背景，能力面板以右侧玻璃抽屉叠加，避免"整页替换"把角色切走。
+   抽屉半透明 + 模糊，角色在背后仍隐约可见，强化"角色为王"。
+   注：面板自身已有 h2 标题，故不再另加抽屉标题栏（避免重复）。 */
+
+.app-shell.web .drawer-content {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    bottom: 14px;
+    left: auto;
+    z-index: 30;
+    width: min(680px, 62%);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-radius: 22px;
+    border: 1px solid var(--border);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(250, 249, 252, 0.92));
+    box-shadow: -18px 0 48px rgba(43, 39, 50, 0.16);
+    -webkit-backdrop-filter: blur(22px) saturate(1.1);
+    backdrop-filter: blur(22px) saturate(1.1);
+    animation: drawer-slide-in var(--dur-slow) var(--ease-out);
+}
+
+@keyframes drawer-slide-in {
+    from { opacity: 0; transform: translateX(22px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* 抽屉内的面板撑满宽度并自行滚动；标题行让出关闭按钮的位置。 */
+.app-shell.web .drawer-content.web-view {
+    padding: 18px 20px;
+}
+
+.app-shell.web .drawer-content .web-view-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+/* 模型抽屉的标题行（ModelView 自带卡片，这里只补一行标题 + 关闭） */
+.app-shell.web .drawer-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.app-shell.web .drawer-heading {
+    margin: 0;
+    font-size: 22px;
+    color: var(--text);
+}
+
+.app-shell.web .drawer-close {
+    flex: 0 0 auto;
+}
+
+/* 点击抽屉以外的区域关闭：透明遮罩铺满内容区，层级低于抽屉本体（z-index 30），
+   因此点遮罩 = 点外部关闭；同时它也挡住了对底层舞台的误触。 */
+.app-shell.web .drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    background: transparent;
+}
+
+/* 抽屉打开时，让房间右侧浮岛先让位淡出，避免与抽屉内容视觉打架。 */
+.app-shell.web .web-content.drawer-open .room-islands {
+    opacity: 0.28;
+    transform: translateX(18px);
+    pointer-events: none;
+}
+
+.app-shell.web .room-islands {
+    transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-shell.web .drawer-content {
+        animation: none;    }
+}
+
+/* Room 打开时侧栏悬浮收起为胶囊入口（点击可再展开），舞台全宽。 */
+.app-shell.web .web-shell.room-active {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell.web .web-shell.room-active .web-sidebar {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    bottom: 12px;
+    z-index: 40;
+    width: 252px;
+    height: auto;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    transform: translateX(calc(-100% - 20px));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 200ms ease, opacity 200ms ease;
+}
+
+.app-shell.web .web-shell.room-active .web-sidebar.sidebar-visible {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 抽屉是 web-content 的绝对定位子元素，因此父级需要定位上下文。 */
+.app-shell.web .web-shell.room-active .web-content {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.app-shell.web .web-shell.room-active .web-content:has(> .room-view) {
+    display: block;
+    overflow: hidden;
+}
+
+.app-shell.web .room-view {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+    gap: 16px;
+    padding: 16px;
+    overflow: hidden;
+}
+
+/* —— 中置舞台 —— */
+.room-view .room-stage {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 26px;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    /* 房间舞台：一层柔光渐变塑造纵深，不用网格纹理 */
+    background: radial-gradient(120% 90% at 50% 0%, #fdfcfd, #f4f6f9 58%, #f6f3f6);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        0 18px 44px rgba(43, 39, 50, 0.1);
+}
+
+.room-view .room-stage-live2d {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+/* 点击角色的反馈脉冲：轻微下压 + 回弹，暗示"被碰到了"。
+   只动 transform，GPU 友好；时长与 RoomView 的 STAGE_TAP_PULSE_MS 保持一致。 */
+@keyframes room-stage-tap {
+    0%   { transform: scale(1); }
+    22%  { transform: scale(0.975); }
+    55%  { transform: scale(1.012); }
+    100% { transform: scale(1); }
+}
+
+.room-view .room-stage-live2d.is-tapped .live2d-stage {
+    animation: room-stage-tap 620ms var(--ease-out);
+}
+
+.room-view .room-stage-live2d:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent-line);
+    border-radius: 18px;
+}
+
+.room-view .room-stage-live2d .live2d-stage {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    display: block;
+    transform: scale(var(--room-scale, 1));
+    transform-origin: center bottom;
+}
+
+.room-view .room-stage-actions {
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    right: 14px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.room-view .room-stage-actions > * {
+    pointer-events: auto;
+}
+
+.room-view .room-emotion-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.room-view .room-emotion-chip {
+    border: 1px solid rgba(217, 200, 214, 0.7);
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 120ms ease, transform 120ms ease;
+}
+
+.room-view .room-emotion-chip:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.room-view .room-emotion-chip.active {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: #fff;
+    border-color: transparent;
+}
+
+.room-view .room-stage-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.44);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.room-view .room-stage-footer-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 状态岛：浮在舞台左下角，展示角色内在状态与陪伴统计。
+   玻璃质感与聊天/音乐岛一致；情绪部分带淡色底，让它一眼可读又不喧哗。 */
+.room-view .room-status-island {
+    position: absolute;
+    left: 16px;
+    bottom: 68px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 10px 24px rgba(43, 39, 50, 0.08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    backdrop-filter: blur(16px) saturate(1.1);
+    font-size: 12px;
+    color: var(--text-2);
+    pointer-events: none;
+}
+
+.room-view .room-status-emotion {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    background: var(--accent-soft-2);
+    color: var(--accent-strong);
+}
+
+/* 情绪取色：只调色相，不改变形态，保证与整体低饱和体系一致。 */
+.room-view .room-status-emotion.emotion-happy { background: var(--success-soft); color: var(--success); }
+.room-view .room-status-emotion.emotion-sad { background: var(--danger-soft); color: var(--danger); }
+.room-view .room-status-emotion.emotion-surprised { background: var(--warning-soft); color: var(--warning); }
+.room-view .room-status-emotion.emotion-thinking,
+.room-view .room-status-emotion.emotion-focused { background: rgba(125, 158, 192, 0.16); color: var(--accent-2); }
+
+.room-view .room-status-metrics {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.room-view .room-status-metrics b {
+    font-weight: 700;
+    color: var(--text-2);
+    white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+    .room-view .room-status-island {
+        left: 12px;
+        bottom: auto;
+        top: 56px;
+    }
+}
+
+.room-view .room-window-controls {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.room-view .room-stage-actions .pill {
+    pointer-events: none;
+}
+
+.room-view .room-speech-bubble {
+    position: absolute;
+    left: 50%;
+    top: 16px;
+    z-index: 6;
+    width: min(90%, 520px);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.room-view .room-speech-bubble p {
+    margin: 0;
+    border: 1px solid rgba(217, 200, 214, 0.72);
+    border-radius: 14px;
+    padding: 9px 13px;
+    background: rgba(255, 255, 255, 0.94);
+    color: var(--text);
+    box-shadow: var(--shadow-soft);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: center;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* —— 右浮岛列 —— */
+.room-view .room-islands {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+}
+
+/* 聊天岛复用既有玻璃卡片语言 */
+.room-view .chat-island {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: 22px;
+    padding: 14px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.44));
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.94),
+        0 18px 44px rgba(77, 64, 82, 0.12);
+    -webkit-backdrop-filter: blur(18px) saturate(1.18);
+    backdrop-filter: blur(18px) saturate(1.18);
+    overflow: hidden;
+}
+
+.room-view .chat-island-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid rgba(217, 200, 214, 0.6);
+    padding-bottom: 10px;
+}
+
+.room-view .chat-island-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.room-view .chat-island-head strong {
+    font-size: 16px;
+    white-space: nowrap;
+}
+
+.room-view .chat-island-context {
+    color: var(--text-2);
+    font-size: 12px;
+}
+
+.room-view .chat-island-foot {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.room-view .room-message-feed {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 4px 6px 2px;
+    border-radius: 14px;
+}
+
+/* 消息卡片样式复用 .app-shell.web .message（同壳作用域），Room 内无需重定义 */
+
+.room-view .room-chat-empty {
+    min-height: 140px;
+    border: 1px dashed var(--accent-line);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 240, 247, 0.9), rgba(237, 249, 255, 0.84));
+}
+
+.room-view .room-islands .composer {
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.86);
+    border-color: rgba(217, 200, 214, 0.72);
+}
+
+/* —— 音乐岛 —— */
+.music-island {
+    flex: 0 1 auto;
+    display: block;
+    border-radius: 22px;
+    padding: 12px 14px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.76), rgba(246, 240, 248, 0.5));
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        0 16px 40px rgba(77, 64, 82, 0.12);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    backdrop-filter: blur(16px) saturate(1.15);
+}
+
+.music-island.expanded {
+    display: grid;
+    gap: 10px;
+    max-height: 50%;
+    overflow: hidden auto;
+}
+
+.music-island.expanded > *:not(.music-island-head) {
+    min-width: 0;
+}
+
+.music-island-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+}
+
+.music-island-head:hover strong {
+    color: var(--accent);
+}
+
+.music-island-head strong {
+    color: var(--text);
+    font-size: 14px;
+}
+
+.music-island-now {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-2);
+    font-size: 12px;
+}
+
+.music-state-tag {
+    border-radius: 999px;
+    padding: 2px 9px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.music-state-tag.working { background: var(--warning-soft); color: var(--warning); }
+.music-state-tag.error { background: var(--danger-soft); color: var(--danger); }
+.music-state-tag.ok { background: var(--success-soft); color: var(--success); }
+
+.music-request-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.music-request-form input {
+    min-width: 0;
+    border: 1px solid rgba(217, 200, 214, 0.68);
+    border-radius: 12px;
+    padding: 8px 11px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.music-request-form input:focus-visible {
+    outline: 2px solid var(--accent-soft);
+    outline-offset: 1px;
+}
+
+.music-send {
+    border: none;
+    border-radius: 12px;
+    padding: 0 14px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.music-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.music-now-playing {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    border-radius: 16px;
+    padding: 9px 12px;
+    background: linear-gradient(135deg, var(--accent-soft-2), rgba(120, 169, 214, 0.12));
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.music-eq {
+    color: var(--accent);
+    font-size: 20px;
+}
+
+.music-now-text {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.music-now-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.music-now-sub {
+    color: var(--text-2);
+    font-size: 11px;
+}
+
+.music-now-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.music-now-actions button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(217, 200, 214, 0.7);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.86);
+    color: var(--text-2);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.music-now-actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.music-note,
+.music-error {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.music-note { color: var(--text-2); }
+.music-error { color: var(--danger); }
+
+.music-track-list {
+    max-height: 176px;
+    overflow-y: auto;
+    display: grid;
+    gap: 4px;
+}
+
+.music-track {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 6px 10px;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background 110ms ease;
+}
+
+.music-track:hover {
+    background: var(--accent-soft);
+}
+
+.music-track.current {
+    background: var(--accent-soft);
+    border-color: var(--accent-soft);
+}
+
+.music-track-index {
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.music-track-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.music-track-duration {
+    color: var(--text-2);
+    font-size: 11px;
+}
+
+@media (max-width: 1000px) {
+    .app-shell.web .room-view {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(360px, 1fr) auto;
+        overflow-y: auto;
+    }
+
+    .room-view .room-stage {
+        min-height: 380px;
+    }
+
+    .room-view .room-stage-live2d {
+        min-height: 300px;
+    }
+}
+
+/* ==========================================================================
+   交互层（Interaction polish）
+   统一时长/缓动/反馈，带来一致且丝滑的手感：
+   · 按钮：悬停轻微上浮 + 阴影加深，按下回弹（active 复位）
+   · 卡片：悬停抬升，按下压平
+   · 输入：边框过渡 + 聚焦光环
+   · 只动画 transform / opacity / box-shadow / border-color（GPU 友好）
+   ========================================================================== */
+
+.app-shell.web button,
+.room-view button,
+.music-island button {
+    transition:
+        background-color var(--dur) var(--ease),
+        border-color var(--dur) var(--ease),
+        color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease),
+        transform var(--dur-fast) var(--ease);
+}
+
+.app-shell.web button:not(:disabled):active,
+.room-view button:not(:disabled):active,
+.music-island button:not(:disabled):active {
+    transform: translateY(0) scale(0.985);
+}
+
+.app-shell.web button:focus-visible,
+.room-view button:focus-visible,
+.music-island button:focus-visible,
+.app-shell.web input:focus-visible,
+.app-shell.web textarea:focus-visible,
+.app-shell.web select:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+    border-color: var(--accent-line);
+}
+
+/* 主按钮：悬停上浮、阴影随层次加深 */
+.app-shell.web .new-conversation,
+.app-shell.web .composer button[type="submit"],
+.room-view .music-send {
+    transition:
+        transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease),
+        filter var(--dur) var(--ease);
+}
+
+.app-shell.web .new-conversation:hover,
+.app-shell.web .composer button[type="submit"]:hover:not(:disabled),
+.room-view .music-send:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lift);
+    filter: saturate(1.04);
+}
+
+/* 次级/幽灵按钮：悬停柔化底色 + 微抬，去线感 */
+.app-shell.web .ghost-button:hover:not(:disabled),
+.room-view .ghost-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+}
+
+.app-shell.web .window-button {
+    transition:
+        background-color var(--dur) var(--ease),
+        color var(--dur) var(--ease),
+        transform var(--dur-fast) var(--ease);
+}
+
+.app-shell.web .window-button:hover {
+    transform: translateY(-1px);
+}
+
+/* 卡片：悬停抬升 + 阴影加深（比 border 变色更高级） */
+.app-shell.web .plugin-card,
+.app-shell.web .task-card,
+.app-shell.web .info-card,
+.app-shell.web .mini-profile,
+.app-shell.web .side-card,
+.room-view .chat-island,
+.music-island {
+    transition:
+        transform var(--dur-slow) var(--ease-out),
+        box-shadow var(--dur-slow) var(--ease-out),
+        border-color var(--dur) var(--ease);
+}
+
+.app-shell.web .plugin-card.clickable:hover,
+.app-shell.web .task-card:hover,
+.app-shell.web .info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+}
+
+/* 导航/会话项：横向位移反馈，指示当前项 */
+.app-shell.web .web-nav-item,
+.app-shell.web .conversation-item {
+    transition:
+        background-color var(--dur) var(--ease),
+        color var(--dur) var(--ease),
+        transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+}
+
+.app-shell.web .web-nav-item:hover,
+.app-shell.web .conversation-item:hover {
+    transform: translateX(2px);
+}
+
+/* 输入控件：聚焦柔和过渡，不做生硬描边 */
+.app-shell.web input,
+.app-shell.web textarea,
+.app-shell.web select,
+.room-view input,
+.music-island input {
+    transition:
+        border-color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease),
+        background-color var(--dur) var(--ease);
+}
+
+/* 音乐岛/浮岛内部按钮的悬停一致性 */
+.music-now-actions button:hover:not(:disabled),
+.app-shell.web .room-emotion-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+}
+
+/* 徽标/胶囊：状态切换时的平滑过渡 */
+.pill,
+.music-state-tag,
+.app-shell.web .plugin-card-stats span,
+.app-shell.web .plugin-permission-list span {
+    transition:
+        background-color var(--dur) var(--ease),
+        color var(--dur) var(--ease),
+        border-color var(--dur) var(--ease);
+}
+
+/* 无障碍：尊重系统"减弱动态效果"——位移/缩放全部停用，仅保留颜色过渡 */
+@media (prefers-reduced-motion: reduce) {
+    .app-shell.web button,
+    .room-view button,
+    .music-island button,
+    .app-shell.web .plugin-card,
+    .app-shell.web .task-card,
+    .app-shell.web .info-card,
+    .app-shell.web .web-nav-item,
+    .app-shell.web .conversation-item,
+    .room-view .chat-island,
+    .music-island {
+        transition-duration: 0.001ms !important;
+    }
+
+    .app-shell.web button:not(:disabled):active,
+    .room-view button:not(:disabled):active,
+    .music-island button:not(:disabled):active,
+    .app-shell.web .new-conversation:hover,
+    .app-shell.web .composer button[type="submit"]:hover:not(:disabled),
+    .room-view .music-send:hover:not(:disabled),
+    .app-shell.web .ghost-button:hover:not(:disabled),
+    .room-view .ghost-button:hover:not(:disabled),
+    .app-shell.web .window-button:hover,
+    .app-shell.web .plugin-card.clickable:hover,
+    .app-shell.web .task-card:hover,
+    .app-shell.web .info-card:hover,
+    .app-shell.web .web-nav-item:hover,
+    .app-shell.web .conversation-item:hover,
+    .music-now-actions button:hover:not(:disabled),
+    .app-shell.web .room-emotion-chip:hover {
+        transform: none !important;
+        filter: none !important;
+    }
+}
+
+/* ===== 后台任务：列表 → 详情 两级视图 =====
+   列表只给「标题 + 状态 + 元信息」，点击整行进详情；详情再分区展开。
+   这样抽屉宽度不宽也能读全，避免把详情塞进列表卡片导致的文字截断与坍缩。 */
+
+.app-shell.web .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.app-shell.web .task-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.86), rgba(252, 251, 253, 0.7));
+    box-shadow: var(--shadow-soft);
+    text-align: left;
+    cursor: pointer;
+}
+
+.app-shell.web .task-list-item:hover {
+    transform: translateY(-1px);
+    border-color: var(--accent-line);
+    box-shadow: var(--shadow-lift);
+}
+
+.app-shell.web .task-list-main {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.app-shell.web .task-list-title {
+    font-size: 14px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 目标只给一行，超出省略；完整内容在详情里看，避免列表被撑高。 */
+.app-shell.web .task-list-goal {
+    font-size: 12px;
+    color: var(--text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-shell.web .task-list-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.app-shell.web .task-list-tag {
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 11px;
+}
+
+.app-shell.web .task-list-time {
+    color: var(--text-2);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.app-shell.web .task-list-arrow {
+    color: var(--text-2);
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* 状态徽标：与全局语义色一致 */
+.app-shell.web .task-status {
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.app-shell.web .task-status.status-completed { background: var(--success-soft); color: var(--success); }
+.app-shell.web .task-status.status-failed { background: var(--danger-soft); color: var(--danger); }
+.app-shell.web .task-status.status-cancelled { background: rgba(120, 112, 130, 0.12); color: var(--text-2); }
+.app-shell.web .task-status.status-running { background: rgba(125, 158, 192, 0.16); color: var(--accent-2); }
+.app-shell.web .task-status.status-queued { background: var(--accent-soft-2); color: var(--accent-strong); }
+.app-shell.web .task-status.status-waiting_for_approval,
+.app-shell.web .task-status.status-waiting_for_input { background: var(--warning-soft); color: var(--warning); }
+
+/* 详情容器：给返回按钮与内容留出稳定间距 */
+.app-shell.web .task-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.app-shell.web .task-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.app-shell.web .task-detail-title {
+    margin: 0;
+    font-size: 19px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.app-shell.web .task-detail-goal {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.app-shell.web .task-detail-error {
+    margin: 0;
+}
+
+.app-shell.web .task-actions-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 14px;
+    background: var(--warning-soft);
+    border: 1px solid var(--warning-line);
+}
+
+.app-shell.web .task-answer-input {
+    flex: 1 1 220px;
+    min-width: 0;
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.app-shell.web .task-detail-section {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.8), rgba(252, 251, 253, 0.62));
+    min-width: 0;
+}
+
+.app-shell.web .task-detail-section > h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.app-shell.web .task-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.app-shell.web .task-meta-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.app-shell.web .task-meta-grid span {
+    color: var(--text-2);
+    font-size: 11px;
+}
+
+.app-shell.web .task-meta-grid b {
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+/* 任务包/结果 JSON：等宽、可滚动、不撑破抽屉 */
+.app-shell.web .task-spec-pre {
+    margin: 0;
+    max-height: 260px;
+    overflow: auto;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(43, 39, 50, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }

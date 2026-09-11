@@ -87,9 +87,10 @@ export const BARGE_IN_MIN_CHARS = 2;
 export const BARGE_IN_ECHO_SIMILARITY = 0.68;
 
 export const REVIEW_ACTION_NAMES = new Set(['show_diff', 'list_changes', 'open_changes', 'accept_changes', 'reject_changes', 'open_in_ide', 'open_workspace']);
+// 详情模式的导航：全部以「右侧抽屉」叠加在房间之上，不再有独立的列表页
+// （因此不含 chat / skins —— 聊天就在房间右侧的聊天岛里，形象就在房间舞台上）。
 export const WEB_NAV: { key: ViewKey; label: string; icon: string }[] = [
-    {key: 'chat', label: '对话', icon: '♡'},
-    {key: 'skins', label: '外观 / 皮肤', icon: '✦'},
+    {key: 'room', label: '房间', icon: '♥'},
     {key: 'model', label: '模型信息', icon: '◇'},
     {key: 'plugins', label: '插件管理', icon: '✧'},
     {key: 'tasks', label: '后台任务', icon: '▣'},

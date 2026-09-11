@@ -288,17 +288,58 @@ Style notes:
 		},
 		{
 			Role: schema.User,
-			Content: fmt.Sprintf("target_message_id: %s\ntarget_message: %s\nplanner_reason: %s\nreply_instructions: %s\nrecent_history:\n%s\nmemory_reference:\n%s\ntool_results:\n%s\nReturn the JSON dialog now.",
+			Content: fmt.Sprintf("target_message_id: %s\ntarget_message: %s\nplanner_reason: %s\nreply_instructions: %s%s\nrecent_history:\n%s\nmemory_reference:\n%s\ntool_results:\n%s\nReturn the JSON dialog now.",
 				decision.TargetMessageID,
 				snapshot.Target.Content,
 				decision.Reason,
 				decision.ReplyInstructions,
+				formatEmotionDirective(decision),
 				formatHistory(snapshot.History, 24),
 				formatStringList(memories),
 				formatToolResults(toolResults),
 			),
 		},
 	}
+}
+
+// formatEmotionDirective 把 Planner 已决定的情绪转成一行「表演指令」注入 Replyer。
+//
+// 背景：Planner 负责决定情绪（它早于流式 TTS，供前端驱动表情），而 Replyer 才写台词。
+// 此前 Replyer 的提示词只给了情绪取值范围并要求「让每句情绪匹配内容」，却没告诉它
+// **本轮该是什么情绪**——于是 LLM 只能逐句重新猜，容易出现「说的内容和该有的情绪对不上」
+// 或情绪与前端表情不一致。这里把 Planner 的决定显式传给 Replyer，让台词与情绪对齐。
+//
+// 只有当 Planner 确实给出了情绪时才注入，避免产生空指令行。
+func formatEmotionDirective(decision PlannerDecision) string {
+	emotion := strings.TrimSpace(decision.Emotion)
+	if emotion == "" {
+		return ""
+	}
+	directive := fmt.Sprintf("\nperformance_directive: 本轮整体情绪为 %q", emotion)
+	if mood := strings.TrimSpace(decision.Mood); mood != "" {
+		directive += fmt.Sprintf("，基调 %q", mood)
+	}
+	// 用自然语言描述连续维度，比裸数字更利于模型把握语气。
+	var hints []string
+	if decision.Valence >= 0.35 {
+		hints = append(hints, "偏积极")
+	} else if decision.Valence <= -0.35 {
+		hints = append(hints, "偏消极")
+	}
+	if decision.Energy >= 0.7 {
+		hints = append(hints, "情绪激动")
+	} else if decision.Energy > 0 && decision.Energy <= 0.3 {
+		hints = append(hints, "语气平静")
+	}
+	if decision.Dominance >= 0.5 {
+		hints = append(hints, "自信主导")
+	} else if decision.Dominance <= -0.5 {
+		hints = append(hints, "顺从害羞")
+	}
+	if len(hints) > 0 {
+		directive += "（" + strings.Join(hints, "、") + "）"
+	}
+	return directive + "。台词的用词与语气要与该情绪一致，不要写出与情绪相悖的台词。"
 }
 
 func QueryPlannerMemory(ctx context.Context, memorySvc *memory.ServiceMemory, snapshot TurnSnapshot, decision PlannerDecision) ([]string, error) {

@@ -3,17 +3,19 @@ version: alpha
 name: "Yuyu-Mind2"
 description: "A soft glass anime desktop-companion shell for chat, Live2D presence, plugins, tasks, logs, and local model controls."
 colors:
-  background: "#FBF7FB"
+  background: "#F7F6F8"
   surface: "rgba(255,255,255,0.72)"
-  surfaceSoft: "#F8EDF4"
-  primary: "#C978AD"
-  secondary: "#78A9D6"
-  mint: "#82BFA9"
-  warning: "#C99254"
-  danger: "#C65C74"
-  text: "#33283D"
-  textMuted: "#756D7E"
-  border: "rgba(217,200,214,0.76)"
+  surfaceSoft: "#F4EEF2"
+  primary: "#B06E93"
+  primaryStrong: "#97587C"
+  secondary: "#7D9EC0"
+  mint: "#7FA99B"
+  success: "#5F9E86"
+  warning: "#B98F56"
+  danger: "#B3606E"
+  text: "#2B2732"
+  textMuted: "#6F6A78"
+  border: "rgba(120,112,130,0.20)"
 typography:
   body:
     fontFamily: "\"Nunito\", \"Segoe UI\", system-ui, -apple-system, sans-serif"
@@ -25,8 +27,14 @@ rounded:
   DEFAULT: "12px"
   sm: "8px"
   md: "12px"
-  lg: "18px"
+  lg: "16px"
   pill: "999px"
+motion:
+  ease: "cubic-bezier(0.22, 0.61, 0.36, 1)"
+  easeOut: "cubic-bezier(0.16, 1, 0.3, 1)"
+  fast: "120ms"
+  base: "180ms"
+  slow: "260ms"
 spacing:
   shell-gap: "14px"
   panel-padding: "22px"
@@ -62,7 +70,9 @@ Yuyu-Mind2 should feel like a soft glass desktop companion shell: gentle anime c
 
 ## Colors
 
-The default application theme is light, low-saturation, and glassy. `background` and `surfaceSoft` carry warmth without candy intensity; `primary` is a muted rose for brand/action emphasis; `secondary` is a softened blue for information and navigation; `mint`, `warning`, and `danger` stay semantic. Text remains aubergine-toned instead of pure black for softer contrast without losing readability.
+The default application theme is light, low-saturation, and glassy. `background` is a warm near-white and `surfaceSoft` a faint rose-grey, so the shell never reads as candy; `primary` is a muted rose (`#B06E93`) reserved for brand/action emphasis, `primaryStrong` for the pressed/active text tone; `secondary` is a desaturated slate blue for information and navigation; `mint`, `success`, `warning`, and `danger` stay semantic and equally low-saturation. Text is a graphite-aubergine instead of pure black for softer contrast without losing readability.
+
+Two rules keep the shell from feeling noisy: **no decorative background patterns** (gradients only carry depth, never texture), and **shadows are neutral** — depth comes from layered neutral shadows (`--shadow`, `--shadow-soft`, `--shadow-lift`), not from coloured glows. All colour values live in the token layer (`:root` / `.app-shell.web`); components must reference tokens rather than hard-coding rgba values.
 
 ## Typography
 
@@ -78,7 +88,7 @@ Depth comes from translucent surfaces, backdrop blur, reflected top edges, and r
 
 ## Shapes
 
-Controls use pill radius when they are short actions or chips. Panels and cards use 12-18px radii; dense log rows and diff rows use 8px. Nested cards should be avoided unless the inner surface represents a separate repeated object.
+Controls use pill radius when they are short actions or chips. Panels and cards use 12–16px radii; dense log rows and diff rows use 8px. Nested cards should be avoided unless the inner surface represents a separate repeated object.
 
 ## Components
 
@@ -104,7 +114,7 @@ No external icon set is installed. Use concise glyphs or text labels already pre
 
 ### Motion
 
-Motion is small and stateful: hover lift, active press, and Live2D presence. Respect reduced motion by disabling decorative transitions and animations outside the avatar's own rendering.
+Motion is small, consistent, and stateful: hover lift (`translateY(-1px)` on controls, `-2px` on cards), active press (`scale(0.985)`), and Live2D presence. Timing comes from the shared motion tokens — `--dur-fast` 120ms for press feedback, `--dur` 180ms for colour/border, `--dur-slow` 260ms for card lift — with `--ease`/`--ease-out` as the only easings. Animate only `transform`, `opacity`, `box-shadow`, and colour so motion stays GPU-friendly and never triggers layout. Respect reduced motion by disabling decorative transitions and animations outside the avatar's own rendering.
 
 ### Content And Data Visualization
 

@@ -176,7 +176,7 @@ frontend/                       Wails 前端占位
 - 异步任务系统（Submit/Claim/Run/Cancel/审批/补答）
 - Memory Gateway 与任务上下文投影快照
 - 情绪管线（LLM 结构化情绪 → Live2D 表演参数 → 持久化）
-- 插件系统（进程内接口 + 生命周期 + 权限 + 动作 + 配置持久化 + 前端面板 + system/workspace 内置插件 + 子进程 sidecar）
+- 插件系统（进程内接口 + 生命周期 + 权限 + 动作 + 配置持久化 + 前端面板 + system/workspace 内置插件 + 子进程 sidecar + 目录即插即用，示例插件：hello / code-assistant(Codex 写代码实时评审) / netease-music(搜歌点歌出声)）
 - Web Search 真实实现（DuckDuckGo，免 Key）
 - 电脑工具（工作区隔离 + 文件读写/列目录 + 命令执行 + 键鼠输入 + 屏幕截图 + Worker 审批流）
 - Worker 真实执行器（LLM 工具循环）

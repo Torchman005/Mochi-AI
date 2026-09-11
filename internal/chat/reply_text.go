@@ -1,86 +1,24 @@
 package chat
 
 import (
-	"context"
-	"fmt"
 	"regexp"
 	"strings"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/yuyu-mind/backend/internal/config"
-	"github.com/yuyu-mind/backend/internal/db"
 )
 
-type SendService struct {
-	db  *db.DB
-	cfg config.ChatConfig
-}
-
-func NewSendService(database *db.DB, cfg config.ChatConfig) *SendService {
-	if cfg.MaxReplyChars <= 0 {
-		cfg.MaxReplyChars = 500
-	}
-	if cfg.SplitMaxChars <= 0 {
-		cfg.SplitMaxChars = 90
-	}
-	return &SendService{db: database, cfg: cfg}
-}
-
-func (s *SendService) SendGuidedReply(
-	ctx context.Context,
-	rt *ConversationRuntime,
-	snapshot TurnSnapshot,
-	raw string,
-	emotion EmotionInfo,
-	emitter Emitter,
-) ([]string, error) {
-	cleaned := postprocessReply(raw)
-	if cleaned == "" {
-		return nil, fmt.Errorf("replyer produced empty reply")
-	}
-	if len([]rune(cleaned)) > s.cfg.MaxReplyChars {
-		return nil, fmt.Errorf("reply length %d exceeds max %d", len([]rune(cleaned)), s.cfg.MaxReplyChars)
-	}
-
-	parts := splitReply(cleaned, s.cfg.SplitMaxChars)
-	if len(parts) == 0 {
-		return nil, fmt.Errorf("reply split produced no sendable messages")
-	}
-
-	now := time.Now()
-	for _, part := range parts {
-		if emitter != nil {
-			emitter.Emit(ChatEvent{Type: EventTypeToken, Content: part})
-		}
-		if err := s.db.Messages.Create(ctx, &db.Message{
-			ID:             uuid.New().String(),
-			ConversationID: snapshot.Target.ConversationID,
-			Role:           "assistant",
-			Content:        part,
-			SourceKind:     "guided_reply",
-			Emotion:        emotion.Emotion,
-			Mood:           emotion.Mood,
-			Energy:         emotion.Energy,
-			Valence:        emotion.Valence,
-			Dominance:      emotion.Dominance,
-			Gesture:        emotion.Gesture,
-			Hand:           emotion.Hand,
-			CreatedAt:      now,
-		}); err != nil {
-			return nil, fmt.Errorf("persist guided reply: %w", err)
-		}
-	}
-
-	rt.CompleteReply(parts, now)
-	return parts, nil
-}
+// 本文件集中放置「回复文本后处理」的纯函数：清洗模型输出、按句切分、长度截断。
+// 它们同时被流式回复路径（stream_reply.go）与测试使用，因此独立于任何 Service 类型。
+//
+// 历史上这些函数与 SendService.SendGuidedReply 放在一起；该同步发送路径已被
+// streamReply（边生成边 emit + 持久化）取代并不再被调用，故一并移除，
+// 仅保留这些仍被复用的纯函数。
 
 var stageLinePattern = regexp.MustCompile(`(?m)^\s*[\(（\[\[【][^\n]{0,80}[\)）\]\]】]\s*$`)
 var leadingStagePattern = regexp.MustCompile(`^\s*[\(（\[\[【][^\n]{0,40}[\)）\]\]】]\s*`)
 // inlineStagePattern 去掉行内动作/心理描写，如「主人（笑）我在这」→「主人我在这」。
 var inlineStagePattern = regexp.MustCompile(`[\(（\[\[【][^\)）\]】]{1,20}[\)）\]】]`)
 
+// postprocessReply 清洗模型输出：去掉行内/整行/行首的舞台指示（动作、心理、神态描写），
+// 规整换行与空白。这是「只输出说出来的话」这一约束的最后一道保障。
 func postprocessReply(raw string) string {
 	text := strings.TrimSpace(raw)
 	text = inlineStagePattern.ReplaceAllString(text, "")
@@ -97,6 +35,7 @@ func postprocessReply(raw string) string {
 	return strings.TrimSpace(text)
 }
 
+// splitReply 按句子边界把长回复切成多条短消息；无标点时按 maxRunes 强制切分。
 func splitReply(text string, maxRunes int) []string {
 	if maxRunes <= 0 || len([]rune(text)) <= maxRunes {
 		return []string{text}
@@ -132,6 +71,13 @@ func isSentenceBoundary(r rune) bool {
 	}
 }
 
+// trimSentencePart 去掉片段末尾的逗号类字符，避免 GPT-SoVITS 对「带尾随逗号的短片段」过度切分而哼声
+// （如「这一声主人，」会被哼成轻哼；去掉尾随逗号成「这一声主人」则能正常读出）。
+func trimSentencePart(part string) string {
+	return strings.TrimRight(strings.TrimSpace(part), "，、；,;")
+}
+
+// nonEmpty 去掉空白项并 trim 每项。
 func nonEmpty(values []string) []string {
 	result := make([]string, 0, len(values))
 	for _, value := range values {

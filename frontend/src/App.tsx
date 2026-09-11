@@ -45,6 +45,8 @@ import {
 import {app, chat, db, loghub} from '../wailsjs/go/models';
 import {AvatarPerformance, Live2DStage} from './components/Live2DStage';
 import {ChatComposer, ChatView, ModelView, PetModeView, SkinsView, WebSidebar} from './components/AppShell';
+import {normalizeMusicResult} from './musicTypes';
+import {RoomView} from './components/RoomView';
 import {
     ASR_PROVIDER,
     ALLOW_SYSTEM_TTS_FALLBACK,
@@ -99,6 +101,7 @@ import {
     VOICE_LOOP_MAX_EMPTY_TURNS,
     VOICE_MAX_UTTERANCE_MS,
     VOICE_RELISTEN_DELAY_MS,
+    WEB_NAV,
     taskStatusLabel,
 } from './appConfig';
 import {
@@ -120,6 +123,7 @@ import {
     canUseWailsRuntime,
     clamp,
     decodeBase64Audio,
+    earliestTimestamp,
     inferAvatarPerformance,
     isEditableTarget,
     isInterruptedPlaybackError,
@@ -148,6 +152,12 @@ function App() {
     const [pluginDetail, setPluginDetail] = useState<app.PluginInfo | null>(null);
     const [pluginConfigText, setPluginConfigText] = useState('');
     const [pluginConfigOpen, setPluginConfigOpen] = useState(false);
+    // netease-music 插件最近一次 control 结果（供 Room 音乐岛显示「正在播放 / 搜索结果」）。
+    const [musicResult, setMusicResult] = useState<Record<string, any> | null>(null);
+    // 音乐播放状态（与语音 voiceStatus 完全解耦，避免触发唇形同步 / barge-in / TTS 冲突）。
+    const [musicPlaying, setMusicPlaying] = useState(false);
+    const musicAudioRef = useRef<HTMLAudioElement | null>(null);
+    const musicPlayIdRef = useRef(0);
     const [tasks, setTasks] = useState<db.AgentTask[]>([]);
     const [tasksOpen, setTasksOpen] = useState(false);
     const [taskAnswer, setTaskAnswer] = useState<Record<string, string>>({});
@@ -166,8 +176,17 @@ function App() {
     const [speechMetrics, setSpeechMetrics] = useState<SpeechMetric[]>([]);
     const [isPetMode, setIsPetMode] = useState(true);
     const [petScale, setPetScale] = useState(readStoredPetScale);
+    // Room 详情视图的角色缩放（独立于桌宠 petScale，滚轮 0.6–2.0）。
+    const [roomScale, setRoomScale] = useState(1);
     const [isPetControlsOpen, setIsPetControlsOpen] = useState(false);
-    const [activeView, setActiveView] = useState<ViewKey>('chat');
+    const [activeView, setActiveView] = useState<ViewKey>('room');
+    // Room 模式：侧栏收起为浮层，由「房间门廊」按钮呼出。
+    const [sidebarVisible, setSidebarVisible] = useState(false);
+    // 抽屉浮层：Room 常驻时，模型/插件/任务/日志/设置以右侧抽屉叠加展示，
+    // 而不是切走整个页面——保持「角色为王」与聊天上下文不中断。
+    const [drawerView, setDrawerView] = useState<ViewKey | null>(null);
+    // 后台任务的详情视图：存 id 而非对象，这样任务状态刷新后详情内容会自动跟随更新。
+    const [taskDetailId, setTaskDetailId] = useState<string | null>(null);
     // 多对话历史：会话列表 + 当前会话 id。
     const [conversations, setConversations] = useState<db.Conversation[]>([]);
     const [activeConversationId, setActiveConversationId] = useState('');
@@ -743,6 +762,8 @@ function App() {
                 setVoiceStatus('idle');
                 setIsPetControlsOpen(false);
                 setIsTextInputOpen(false);
+                // ESC 同时收起抽屉浮层（与关闭输入/语音的语义一致）。
+                setDrawerView(null);
                 return;
             }
 
@@ -750,7 +771,7 @@ function App() {
                 !event.metaKey &&
                 !event.altKey &&
                 event.key.toLowerCase() === 'v' &&
-                (isPetMode || freeConversationMode) &&
+                (isPetMode || freeConversationMode || activeView === 'room') &&
                 (freeConversationMode || !isEditableTarget(event.target));
             if (isVoiceShortcut) {
                 event.preventDefault();
@@ -794,7 +815,7 @@ function App() {
 
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [effectiveContinuousVoiceMode, freeConversationMode, isPetMode, isSending, voiceStatus]);
+    }, [effectiveContinuousVoiceMode, freeConversationMode, isPetMode, isSending, voiceStatus, activeView]);
 
     useEffect(() => {
         if (isTextInputOpen) {
@@ -1003,7 +1024,109 @@ function App() {
             audio.load();
             audioRef.current = null;
         }
+        // 语音通道停止时同时停音乐，避免 TTS/回复与音乐混音。
+        stopMusic();
         window.speechSynthesis?.cancel?.();
+    }
+
+    // ---- 音乐播放（独立于语音/唇形/TTS 管线） ----
+    // netease-music 插件返回 playbackUrl 时经这里出声：不走 audioRef/voiceStatus，
+    // 因此不触发唇形同步、不被 barge-in 打断、不与逐句 TTS 抢播放。
+
+    function stopMusic() {
+        musicPlayIdRef.current += 1;
+        const audio = musicAudioRef.current;
+        if (audio) {
+            audio.onended = null;
+            audio.onerror = null;
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
+            musicAudioRef.current = null;
+        }
+        setMusicPlaying(false);
+    }
+
+    async function playMusicUrl(url: string, options: {autoNext?: boolean} = {}) {
+        if (!url) {
+            setMusicPlaying(false);
+            return;
+        }
+        // 新歌开始：停掉正在播放的语音回复，避免音乐与 TTS 同时出声。
+        stopCurrentAudio();
+        stopMusic();
+        const playId = musicPlayIdRef.current + 1;
+        musicPlayIdRef.current = playId;
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        audio.crossOrigin = 'anonymous';
+        musicAudioRef.current = audio;
+        audio.onended = () => {
+            if (playId !== musicPlayIdRef.current) {
+                return;
+            }
+            setMusicPlaying(false);
+            // 自动连播：插件标记队列里还有下一首（且 cfg.autoNext 未关闭）时自动接下一首。
+            // 用 playId 守卫天然去重：next 会推进 musicPlayIdRef，同一次 ended 不会触发两次。
+            if (options.autoNext) {
+                void nextMusicTrack();
+            }
+        };
+        audio.onerror = () => {
+            if (playId === musicPlayIdRef.current) {
+                setMusicPlaying(false);
+                setVoiceError('音乐播放失败：音频地址不可用或已过期，请重新点歌。');
+            }
+        };
+        try {
+            await audio.play();
+            if (playId === musicPlayIdRef.current) {
+                setMusicPlaying(true);
+            }
+        } catch (reason) {
+            if (playId === musicPlayIdRef.current) {
+                setMusicPlaying(false);
+                setVoiceError(`音乐播放被浏览器阻止：${String((reason as Error)?.message || reason)}`);
+            }
+        }
+    }
+
+    // 下一首：供自动连播（歌曲 ended）与音乐岛「下一首」按钮共用。
+    async function nextMusicTrack(): Promise<unknown> {
+        try {
+            const result = await InvokePluginAction('netease-music', 'control', {message: '下一首'});
+            setMusicResult(result as Record<string, any> | null);
+            handlePluginPlaybackResult(result as Record<string, any>);
+            return result;
+        } catch (reason) {
+            setVoiceError(`切歌失败：${String((reason as Error)?.message || reason)}`);
+            return null;
+        }
+    }
+
+    function pauseMusic() {
+        musicAudioRef.current?.pause();
+        setMusicPlaying(false);
+    }
+
+    function resumeMusic() {
+        const audio = musicAudioRef.current;
+        if (!audio) {
+            setVoiceError('没有可继续播放的音乐。');
+            return;
+        }
+        const playId = musicPlayIdRef.current;
+        void audio.play()
+            .then(() => {
+                if (playId === musicPlayIdRef.current) {
+                    setMusicPlaying(true);
+                }
+            })
+            .catch((reason) => {
+                if (playId === musicPlayIdRef.current) {
+                    setVoiceError(`音乐继续播放失败：${String((reason as Error)?.message || reason)}`);
+                }
+            });
     }
 
     function playbackUrlFromPluginResult(result: Record<string, any>): string {
@@ -1012,75 +1135,25 @@ function App() {
         return typeof raw === 'string' ? raw.trim() : '';
     }
 
-    async function playPluginAudioUrl(url: string) {
-        if (!url) {
-            return;
-        }
-        stopCurrentAudio();
-        const playbackId = playbackIdRef.current;
-        const audio = new Audio(url);
-        audio.preload = 'auto';
-        audio.crossOrigin = 'anonymous';
-        audioRef.current = audio;
-        attachLipSync(audio, playbackId);
-        audio.oncanplay = () => {
-            if (playbackId === playbackIdRef.current) {
-                setVoiceStatus('speaking');
-            }
-        };
-        audio.onended = () => finishSpeaking(playbackId);
-        audio.onerror = () => {
-            if (playbackId !== playbackIdRef.current) {
-                return;
-            }
-            setVoiceError('音乐播放失败：音频地址不可用或已过期，请重新获取播放链接。');
-            finishSpeaking(playbackId);
-        };
-        try {
-            await audio.play();
-            setVoiceStatus('speaking');
-        } catch (reason) {
-            if (playbackId !== playbackIdRef.current) {
-                return;
-            }
-            setVoiceError(`音乐播放被浏览器阻止：${String((reason as Error)?.message || reason)}`);
-            finishSpeaking(playbackId);
-        }
-    }
-
     function handlePluginPlaybackResult(result: Record<string, any>) {
         const metadata = result && typeof result.metadata === 'object' && result.metadata !== null ? result.metadata as Record<string, any> : {};
         const action = String(metadata.playbackAction ?? metadata.playback_action ?? result.playbackAction ?? result.playback_action ?? '').trim().toLowerCase();
         if (action === 'pause') {
-            audioRef.current?.pause();
-            setVoiceStatus('idle');
-            setMouthLevel(0);
+            pauseMusic();
             return;
         }
         if (action === 'resume') {
-            const audio = audioRef.current;
-            if (!audio) {
-                setVoiceError('没有可继续播放的音乐。');
-                return;
-            }
-            const playbackId = playbackIdRef.current;
-            void audio.play()
-                .then(() => setVoiceStatus('speaking'))
-                .catch((reason) => {
-                    if (playbackId === playbackIdRef.current) {
-                        setVoiceError(`音乐继续播放失败：${String((reason as Error)?.message || reason)}`);
-                    }
-                });
+            resumeMusic();
             return;
         }
         if (action === 'stop') {
-            stopCurrentAudio();
-            setVoiceStatus('idle');
+            stopMusic();
             return;
         }
         const playbackUrl = playbackUrlFromPluginResult(result);
         if (playbackUrl) {
-            void playPluginAudioUrl(playbackUrl);
+            // metadata.autoNext：插件表示队列里还有下一首，播完自动续播（自动连播）。
+            void playMusicUrl(playbackUrl, {autoNext: metadata.autoNext === true});
         }
     }
 
@@ -1792,6 +1865,15 @@ function App() {
         });
     }
 
+    // Room 详情舞台滚轮缩放（仅 web 视图生效）。
+    function resizeRoomWithWheel(event: WheelEvent<HTMLElement>) {
+        event.preventDefault();
+        setRoomScale((scale) => {
+            const direction = event.deltaY < 0 ? 1 : -1;
+            return Number(clamp(scale + direction * 0.08, 0.6, 2.0).toFixed(2));
+        });
+    }
+
     async function clearChat() {
         if (isSending || voiceStatus === 'speaking') {
             return;
@@ -1878,7 +1960,9 @@ function App() {
             setActiveConversationId(conv.id);
             setMessages([]);
             setPerformanceHint(null);
-            setActiveView('chat');
+            // 会话切换后停留在房间（列表视图已取消），并收起抽屉。
+            setDrawerView(null);
+            setActiveView('room');
         } catch (reason) {
             setError(String(reason));
         }
@@ -1891,7 +1975,8 @@ function App() {
         setActiveConversationId(id);
         setPerformanceHint(null);
         void reloadConversation(id);
-        setActiveView('chat');
+        setDrawerView(null);
+        setActiveView('room');
     }
 
     async function refreshConfigEditor() {
@@ -2218,12 +2303,34 @@ function App() {
         try {
             const result = await InvokePluginAction(pluginName, actionName, input);
             setPluginResult(JSON.stringify(result, null, 2));
-            const playbackUrl = playbackUrlFromPluginResult(result as Record<string, any>);
-            if (playbackUrl) {
-                void playPluginAudioUrl(playbackUrl);
+            // 插件可在返回结果里携带播放指令（metadata.playbackUrl / playbackAction）：
+            // 有 playbackUrl 就播放新音频，playbackAction=pause/resume/stop 则控制当前音频。
+            handlePluginPlaybackResult(result as Record<string, any>);
+            // netease-music：把结果同步给 Room 音乐岛（现在播放/搜索结果）。
+            if (pluginName === 'netease-music') {
+                setMusicResult(result as Record<string, any> | null);
             }
         } catch (reason) {
             setError(String(reason));
+        }
+    }
+
+    // Room 音乐岛专用：自然语言指令 → control 动作 → 结果回填 musicResult 并交给播放链路。
+    async function runMusicCommand(message: string): Promise<unknown> {
+        const text = String(message || '').trim();
+        if (!text) {
+            return {ok: false, message: '空指令。试试「播放 晴天」或「暂停」。'};
+        }
+        try {
+            const result = await InvokePluginAction('netease-music', 'control', {message: text});
+            setMusicResult(result as Record<string, any> | null);
+            handlePluginPlaybackResult(result as Record<string, any>);
+            return result;
+        } catch (reason) {
+            const messageText = String((reason as Error)?.message || reason);
+            setMusicResult({ok: false, message: messageText} as Record<string, any>);
+            setError(messageText);
+            throw reason;
         }
     }
 
@@ -2260,7 +2367,11 @@ function App() {
     }
 
     function manualActions(plugin: app.PluginInfo): any[] {
-        return (plugin.actions ?? []).filter((action) => !REVIEW_ACTION_NAMES.has(String(action.name)));
+        // netease-music 的 control 动作走专用点歌输入框，不在通用网格里重复出现。
+        const isMusicControl = plugin.name === 'netease-music'
+            ? (action: any) => String(action?.name) === 'control'
+            : () => false;
+        return (plugin.actions ?? []).filter((action) => !REVIEW_ACTION_NAMES.has(String(action.name)) && !isMusicControl(action));
     }
 
     function formatChangeKind(change: PluginChange): string {
@@ -2281,6 +2392,44 @@ function App() {
         } catch {
             return null;
         }
+    }
+
+    // 把任务时间戳格式化成列表里够用的短格式（今天只显示时间，其余显示月-日）。
+    function formatTimestamp(value: unknown): string {
+        if (!value) {
+            return '—';
+        }
+        const date = new Date(value as string);
+        if (Number.isNaN(date.getTime())) {
+            return '—';
+        }
+        const now = new Date();
+        const sameDay = date.toDateString() === now.toDateString();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        return sameDay ? time : `${date.getMonth() + 1}-${pad(date.getDate())} ${time}`;
+    }
+
+    // 任务耗时：已结束用完成时刻算总时长；进行中用当前时刻；未开始返回占位符。
+    function taskDurationText(task: db.AgentTask): string {
+        const started = task.started_at ? new Date(task.started_at as string).getTime() : NaN;
+        if (!Number.isFinite(started)) {
+            return '未开始';
+        }
+        const ended = task.completed_at ? new Date(task.completed_at as string).getTime() : Date.now();
+        if (!Number.isFinite(ended) || ended < started) {
+            return '—';
+        }
+        const seconds = Math.max(0, Math.round((ended - started) / 1000));
+        if (seconds < 60) {
+            return `${seconds} 秒`;
+        }
+        const minutes = Math.floor(seconds / 60);
+        const rest = seconds % 60;
+        if (minutes < 60) {
+            return rest > 0 ? `${minutes} 分 ${rest} 秒` : `${minutes} 分`;
+        }
+        return `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分`;
     }
 
     function taskCodeReview(task: db.AgentTask): Record<string, any> | null {
@@ -2915,7 +3064,7 @@ function App() {
                     onExitPetMode={() => setIsPetMode(false)}
                 />
             ) : (
-            <div className="web-shell">
+            <div className={`web-shell${activeView === 'room' ? ' room-active' : ''}`}>
                 <WebSidebar
                     conversations={conversations}
                     activeConversationId={activeConversationId}
@@ -2924,41 +3073,70 @@ function App() {
                     agentProvider={agentProvider}
                     onNewConversation={() => void newConversation()}
                     onSelectConversation={selectConversation}
-                    onSelectView={setActiveView}
+                    onSelectView={(view) => {
+                        // 详情模式只有「房间 + 右侧抽屉」两种状态：选房间即收起抽屉，
+                        // 选其它能力面板则在房间之上叠加抽屉（不再切走整页）。
+                        if (view === 'room') {
+                            setDrawerView(null);
+                            setTaskDetailId(null);
+                        } else {
+                            setActiveView('room');
+                            setDrawerView(view);
+                            setTaskDetailId(null);
+                        }
+                        setSidebarVisible(false);
+                    }}
                     onPetMode={() => setIsPetMode(true)}
+                    sidebarVisible={sidebarVisible}
                 />
 
-                <section className="web-content" aria-label="列表内容">
-                    {activeView === 'chat' && (
-                        <ChatView
-                            messages={displayedMessages}
-                            feedRef={feedRef}
-                            voiceStatus={voiceStatus}
-                            agentStatus={agentStatus}
-                            agentProvider={agentProvider}
-                            providerError={providerError}
-                            error={error}
-                            voiceError={voiceError}
-                            composer={composer}
+                <section className={`web-content${drawerView !== null ? ' drawer-open' : ''}`} aria-label="列表内容">
+                    {/* 点击抽屉以外的区域关闭抽屉：这层透明遮罩铺满内容区、位于抽屉之下（z-index 低于抽屉），
+                        既提供了"点外部关闭"，又顺手挡住了对底层舞台的误触（否则点空白会同时触发角色互动）。 */}
+                    {drawerView !== null && (
+                        <div
+                            className="drawer-backdrop"
+                            onClick={() => {
+                                setDrawerView(null);
+                                setTaskDetailId(null);
+                            }}
+                            aria-hidden="true"
                         />
                     )}
 
-                    {activeView === 'skins' && (
-                        <SkinsView
+                    {activeView === 'room' && (
+                        <RoomView
                             emotion={emotion}
                             voiceStatus={voiceStatus}
                             mouthLevel={mouthLevel}
-                            petScale={petScale}
+                            petScale={roomScale}
                             performance={avatarPerformance}
+                            assistantLine={assistantLine}
+                            agentStatus={agentStatus}
+                            agentProvider={agentProvider}
+                            messages={displayedMessages}
+                            feedRef={feedRef}
+                            composer={composer}
+                            conversationCount={conversations.length}
+                            firstConversationAt={earliestTimestamp(conversations.map((conv) => conv.created_at))}
+                            musicEnabled={plugins.some((plugin) => plugin.name === 'netease-music')}
+                            musicResult={normalizeMusicResult(musicResult)}
+                            musicPlaying={musicPlaying}
+                            onMusicCommand={runMusicCommand}
+                            onStageWheel={resizeRoomWithWheel}
+                            onPickEmotion={setEmotion}
+                            onToggleSidebar={() => setSidebarVisible((value) => !value)}
                         />
                     )}
 
-                    {activeView === 'model' && (
-                        <ModelView agentProvider={agentProvider} agentStatus={agentStatus} providerError={providerError} />
+                    {drawerView === 'model' && (
+                        <div className="drawer-content drawer-content-plain">
+                            <ModelView agentProvider={agentProvider} agentStatus={agentStatus} providerError={providerError} />
+                        </div>
                     )}
 
-                    {activeView === 'plugins' && (
-                        <section className="web-view">
+                    {drawerView === 'plugins' && (
+                        <section className="web-view drawer-content">
                             <h2 className="web-view-title">插件管理</h2>
                             {pluginDetail ? (
                                 <div className="plugin-detail">
@@ -3017,6 +3195,26 @@ function App() {
                                                             <span>{actionDescription(action)}</span>
                                                         </button>
                                                     ))}
+                                                </div>
+                                            </section>
+                                        )}
+
+                                        {pluginDetail.name === 'netease-music' && (
+                                            <section className="plugin-section">
+                                                <div className="plugin-section-head">
+                                                    <h3>音乐播放</h3>
+                                                    <span>通过本地网易云 API 搜索/播放（control 动作）</span>
+                                                </div>
+                                                <div className="music-control-box">
+                                                    <input
+                                                        className="music-control-input"
+                                                        value={pluginActionInput}
+                                                        onChange={(event) => setPluginActionInput(event.target.value)}
+                                                        onKeyDown={(event) => { if (event.key === 'Enter') void invokePluginAction(pluginDetail.name, 'control'); }}
+                                                        placeholder="例如：播放 晴天 / 放一首 七里香 / 搜索 周杰伦 / 暂停 / 继续 / 停止 / 歌词"
+                                                    />
+                                                    <button type="button" className="primary-soft-button" onClick={() => void invokePluginAction(pluginDetail.name, 'control')}>点歌</button>
+                                                    <span className="plugin-hint">输入内容会作为 message 交给插件解析。需先在本机启动网易云 API 服务并在配置里填好 apiBaseUrl（见插件 README）。</span>
                                                 </div>
                                             </section>
                                         )}
@@ -3086,93 +3284,173 @@ function App() {
                         </section>
                     )}
 
-                    {activeView === 'tasks' && (
-                        <section className="web-view">
-                            <h2 className="web-view-title">后台任务</h2>
-                            <div className="plugin-panel-header">
-                                <strong>后台任务</strong>
-                                <button type="button" className="ghost-button" onClick={refreshTasks}>刷新</button>
-                            </div>
-                            {tasks.length === 0 && (
-                                <div className="empty-state"><span>暂无后台任务。在聊天里让我「写代码 / 做 PPT / 创建文件」会在这里显示。</span></div>
-                            )}
-                            {tasks.map((task) => {
+                    {drawerView === 'tasks' && (
+                        <section className="web-view drawer-content">
+                            {(() => {
+                                const currentTask = taskDetailId ? tasks.find((item) => item.id === taskDetailId) : undefined;
+
+                                // 详情：任务 ID 失效（被清理/切换）时自动回到列表，避免出现空白页。
+                                if (taskDetailId && !currentTask) {
+                                    return (
+                                        <div className="task-detail">
+                                            <button type="button" className="ghost-button task-back" onClick={() => setTaskDetailId(null)}>← 返回任务列表</button>
+                                            <div className="empty-state"><span>没有找到这个任务，可能已经被清理。</span></div>
+                                        </div>
+                                    );
+                                }
+
+                                // ── 列表视图：只给标题 + 状态 + 关键元信息，点击整行进入详情 ──
+                                if (!currentTask) {
+                                    return (
+                                        <>
+                                            <div className="plugin-panel-header">
+                                                <h2 className="web-view-title">后台任务</h2>
+                                                <button type="button" className="ghost-button" onClick={refreshTasks}>刷新</button>
+                                            </div>
+                                            {tasks.length === 0 && (
+                                                <div className="empty-state"><span>暂无后台任务。在聊天里让我「写代码 / 做 PPT / 创建文件」会在这里显示。</span></div>
+                                            )}
+                                            <div className="task-list">
+                                                {tasks.map((task) => {
+                                                    const taskFiles = taskReviewFiles(task);
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            className="task-list-item"
+                                                            key={task.id}
+                                                            onClick={() => setTaskDetailId(task.id)}
+                                                        >
+                                                            <span className="task-list-main">
+                                                                <b className="task-list-title">{task.title || task.goal || '未命名任务'}</b>
+                                                                <span className="task-list-goal">{task.goal}</span>
+                                                            </span>
+                                                            <span className="task-list-meta">
+                                                                <span className={`task-status status-${task.status}`}>{taskStatusLabel[task.status] ?? task.status}</span>
+                                                                {taskFiles.length > 0 && <span className="task-list-tag">{taskFiles.length} 个变更</span>}
+                                                                <span className="task-list-time">{formatTimestamp(task.created_at)}</span>
+                                                                <span className="task-list-arrow" aria-hidden="true">›</span>
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
+                                    );
+                                }
+
+                                // ── 详情视图：分区块展示执行信息 / 结果 / 代码变更 / 审批 ──
+                                const task = currentTask;
                                 const codeReview = taskCodeReview(task);
                                 const files = taskReviewFiles(task);
                                 const diff = taskReviewDiff(task);
                                 const diffOpen = Boolean(taskReviewDiffOpen[task.id]);
+                                const duration = taskDurationText(task);
+                                const isActive = ['queued', 'running', 'waiting_for_input', 'waiting_for_approval'].includes(task.status);
                                 return (
-                                    <div className="task-card" key={task.id}>
-                                        <div className="task-card-top">
-                                            <div className="plugin-card-main">
-                                                <b>{task.title || task.goal}</b>
-                                                <small>{taskStatusLabel[task.status] ?? task.status}</small>
-                                                {task.error && <p className="task-error">{task.error}</p>}
-                                            </div>
-                                            <div className="plugin-card-actions">
+                                    <div className="task-detail">
+                                        <div className="task-detail-head">
+                                            <button type="button" className="ghost-button task-back" onClick={() => setTaskDetailId(null)}>← 返回任务列表</button>
+                                            <span className={`task-status status-${task.status}`}>{taskStatusLabel[task.status] ?? task.status}</span>
+                                        </div>
+                                        <h2 className="task-detail-title">{task.title || '未命名任务'}</h2>
+                                        <p className="task-detail-goal">{task.goal}</p>
+                                        {task.error && <div className="error task-detail-error">{task.error}</div>}
+
+                                        {isActive && (
+                                            <div className="task-actions-bar">
                                                 {task.status === 'waiting_for_input' && (
                                                     <>
-                                                        <input value={taskAnswer[task.id] || ''} onChange={(event) => setTaskAnswer((prev) => ({...prev, [task.id]: event.target.value}))} placeholder="补充信息..." />
-                                                        <button type="button" onClick={() => void answerTask(task.id)}>回答</button>
+                                                        <input
+                                                            className="task-answer-input"
+                                                            value={taskAnswer[task.id] || ''}
+                                                            onChange={(event) => setTaskAnswer((prev) => ({...prev, [task.id]: event.target.value}))}
+                                                            placeholder="补充信息后点「回答」..."
+                                                            onKeyDown={(event) => { if (event.key === 'Enter') void answerTask(task.id); }}
+                                                        />
+                                                        <button type="button" className="primary-soft-button" onClick={() => void answerTask(task.id)}>回答</button>
                                                     </>
                                                 )}
                                                 {task.status === 'waiting_for_approval' && (
                                                     <>
-                                                        <button type="button" onClick={() => void approveTask(task.id, true)}>批准</button>
-                                                        <button type="button" onClick={() => void approveTask(task.id, false)}>拒绝</button>
+                                                        <button type="button" className="primary-soft-button" onClick={() => void approveTask(task.id, true)}>批准</button>
+                                                        <button type="button" className="danger-soft-button" onClick={() => void approveTask(task.id, false)}>拒绝</button>
                                                     </>
                                                 )}
-                                                {['queued', 'running', 'waiting_for_input', 'waiting_for_approval'].includes(task.status) && (
-                                                    <button type="button" onClick={() => void cancelTask(task.id)}>取消</button>
-                                                )}
+                                                <button type="button" className="ghost-button" onClick={() => void cancelTask(task.id)}>取消任务</button>
                                             </div>
-                                        </div>
+                                        )}
 
-                                        {codeReview && (
-                                            <section className="task-review-panel">
-                                                <div className="plugin-section-head">
-                                                    <h3>代码变更</h3>
-                                                    <span>{String(codeReview.branch || codeReview.cwd || '工作区变更')} · {files.length} 个条目</span>
+                                        <section className="task-detail-section">
+                                            <h3>执行信息</h3>
+                                            <div className="task-meta-grid">
+                                                <div><span>状态</span><b>{taskStatusLabel[task.status] ?? task.status}</b></div>
+                                                <div><span>创建</span><b>{formatTimestamp(task.created_at)}</b></div>
+                                                <div><span>耗时</span><b>{duration}</b></div>
+                                                <div><span>优先级</span><b>{String(task.priority ?? 0)}</b></div>
+                                            </div>
+                                        </section>
+
+                                        <section className="task-detail-section">
+                                            <div className="plugin-section-head">
+                                                <h3>代码变更</h3>
+                                                {codeReview && <span>{String(codeReview.branch || codeReview.cwd || '工作区变更')} · {files.length} 个条目</span>}
+                                            </div>
+                                            {!codeReview && (
+                                                <p className="plugin-hint">这个任务没有产生代码变更（可能是普通文件操作，或还没开始）。</p>
+                                            )}
+                                            {codeReview && Array.isArray(codeReview.absorbedNestedRepos) && codeReview.absorbedNestedRepos.length > 0 && (
+                                                <p className="plugin-hint">检测到新建子项目自带 git 仓库，已临时按普通目录纳入本轮评审，所以 VS Code 能显示内部文件增删。</p>
+                                            )}
+                                            {files.length > 0 && (
+                                                <div className="change-list compact">
+                                                    {files.map((change, index) => (
+                                                        <div className="change-row" key={`${task.id}-${change.path}-${index}`}>
+                                                            <span className={`change-kind kind-${String(change.kind || 'changed').toLowerCase()}`}>{formatChangeKind(change)}</span>
+                                                            <span className="change-path">{change.path}</span>
+                                                            {change.oldPath && <span className="change-old">← {change.oldPath}</span>}
+                                                            {change.nestedRepo && <span className="change-note">{change.nestedCount || 0} 个内部变更</span>}
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                {Array.isArray(codeReview.absorbedNestedRepos) && codeReview.absorbedNestedRepos.length > 0 && (
-                                                    <p className="plugin-hint">检测到新建子项目自带 git 仓库，已临时按普通目录纳入本轮评审，所以 VS Code 能显示内部文件增删。</p>
-                                                )}
-                                                {files.length > 0 && (
-                                                    <div className="change-list compact">
-                                                        {files.map((change, index) => (
-                                                            <div className="change-row" key={`${task.id}-${change.path}-${index}`}>
-                                                                <span className={`change-kind kind-${String(change.kind || 'changed').toLowerCase()}`}>{formatChangeKind(change)}</span>
-                                                                <span className="change-path">{change.path}</span>
-                                                                {change.oldPath && <span className="change-old">← {change.oldPath}</span>}
-                                                                {change.nestedRepo && <span className="change-note">{change.nestedCount || 0} 个内部变更</span>}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                            )}
+                                            {codeReview && (
                                                 <div className="review-toolbar task-review-actions">
                                                     <button type="button" className="primary-soft-button" onClick={() => void openTaskReviewInVSCode(task)}>在 VS Code 查看</button>
                                                     {diff && <button type="button" className="ghost-button" onClick={() => setTaskReviewDiffOpen((prev) => ({...prev, [task.id]: !diffOpen}))}>{diffOpen ? '收起补丁' : '查看补丁'}</button>}
                                                     <button type="button" className="rev-accept" onClick={() => void reviewTaskDecision(task, 'accept_changes')}>接受</button>
                                                     <button type="button" className="rev-reject" onClick={() => void reviewTaskDecision(task, 'reject_changes')}>拒绝</button>
                                                 </div>
-                                                {diff && diffOpen && (
-                                                    <div className="review-diff">
-                                                        {diff.split('\n').map((line, i) => (
-                                                            <div key={i} className={`diff-line ${line.startsWith('+') && !line.startsWith('+++') ? 'add' : line.startsWith('-') && !line.startsWith('---') ? 'del' : (line.startsWith('@@') || line.startsWith('diff ') || line.startsWith('index ')) ? 'meta' : ''}`}>{line || ' '}</div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                            )}
+                                            {diff && diffOpen && (
+                                                <div className="review-diff">
+                                                    {diff.split('\n').map((line, i) => (
+                                                        <div key={i} className={`diff-line ${line.startsWith('+') && !line.startsWith('+++') ? 'add' : line.startsWith('-') && !line.startsWith('---') ? 'del' : (line.startsWith('@@') || line.startsWith('diff ') || line.startsWith('index ')) ? 'meta' : ''}`}>{line || ' '}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </section>
+
+                                        <section className="task-detail-section">
+                                            <h3>任务包</h3>
+                                            <pre className="task-spec-pre">{task.spec_json || '（无任务包信息）'}</pre>
+                                        </section>
+
+                                        {task.result_json && (
+                                            <section className="task-detail-section">
+                                                <h3>结果</h3>
+                                                <pre className="task-spec-pre">{task.result_json}</pre>
                                             </section>
                                         )}
+
+                                        {pluginResult && <div className="plugin-result-box">{pluginResult}</div>}
                                     </div>
                                 );
-                            })}
-                            {pluginResult && <div className="plugin-result-box">{pluginResult}</div>}
+                            })()}
                         </section>
                     )}
 
-                    {activeView === 'logs' && (
-                        <section className="web-view">
+                    {drawerView === 'logs' && (
+                        <section className="web-view drawer-content">
                             <div className="log-header">
                                 <h2 className="web-view-title">桌宠日志</h2>
                                 <div className="log-toolbar">
@@ -3214,8 +3492,8 @@ function App() {
                         </section>
                     )}
 
-                    {activeView === 'settings' && (
-                        <section className="web-view">
+                    {drawerView === 'settings' && (
+                        <section className="web-view drawer-content">
                             <h2 className="web-view-title">设置</h2>
                             <section className="settings-section">
                                 <div className="plugin-section-head">

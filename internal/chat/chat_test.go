@@ -23,8 +23,7 @@ func TestExtractJSONObject(t *testing.T) {
 	}
 }
 
-func TestPostprocessReply(t *testing.T) {
-	in := "（思考中）\n你好，世界。\n(这是舞台指示)\n"
+func TestPostprocessReply(t *testing.T) {	in := "（思考中）\n你好，世界。\n(这是舞台指示)\n"
 	got := postprocessReply(in)
 	if strings.Contains(got, "舞台指示") || strings.Contains(got, "思考中") {
 		t.Fatalf("stage directions not removed: %q", got)
@@ -167,5 +166,61 @@ func TestParsePlannerDecisionWindowsPath(t *testing.T) {
 	}
 	if decision.Task.Workspace != "D:\\itJinYu_toolkit\\AI-pet" {
 		t.Fatalf("workspace not fixed: %q", decision.Task.Workspace)
+	}
+}
+
+// TestFormatEmotionDirective 覆盖「把 Planner 情绪传给 Replyer」这一纯函数的边界。
+// 该指令是台词与表情对齐的唯一通道，若在重构中静默失效，回复会重新变得"情绪与内容无关"。
+func TestFormatEmotionDirective(t *testing.T) {
+	// 无情绪 → 不注入（避免 prompt 里出现空的 performance_directive 行）。
+	if got := formatEmotionDirective(PlannerDecision{}); got != "" {
+		t.Fatalf("空情绪不应注入指令，得到 %q", got)
+	}
+
+	// 仅情绪 + 基调。
+	got := formatEmotionDirective(PlannerDecision{Emotion: EmotionHappy, Mood: MoodCheer})
+	if !strings.Contains(got, `"happy"`) || !strings.Contains(got, `"cheer"`) {
+		t.Fatalf("指令应包含情绪与基调：%q", got)
+	}
+	if !strings.HasPrefix(got, "\n") {
+		t.Fatalf("指令应以换行开头以便拼接：%q", got)
+	}
+	if !strings.Contains(got, "用词与语气要与该情绪一致") {
+		t.Fatalf("指令应要求台词与情绪一致：%q", got)
+	}
+
+	// 连续维度 → 自然语言提示（积极 + 激动 + 自信）。
+	got = formatEmotionDirective(PlannerDecision{
+		Emotion: EmotionHappy, Valence: 0.8, Energy: 0.9, Dominance: 0.7,
+	})
+	for _, want := range []string{"偏积极", "情绪激动", "自信主导"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("高唤醒正向情绪缺少提示 %q：%q", want, got)
+		}
+	}
+
+	// 消极 + 平静 + 顺从。
+	got = formatEmotionDirective(PlannerDecision{
+		Emotion: EmotionSad, Valence: -0.9, Energy: 0.1, Dominance: -0.8,
+	})
+	for _, want := range []string{"偏消极", "语气平静", "顺从害羞"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("低唤醒负向情绪缺少提示 %q：%q", want, got)
+		}
+	}
+
+	// 中性区间不应误加提示（|valence|<0.35 且 energy 在 (0.3,0.7) 之间）。
+	got = formatEmotionDirective(PlannerDecision{
+		Emotion: EmotionNeutral, Valence: 0.1, Energy: 0.5, Dominance: 0.1,
+	})
+	for _, unwanted := range []string{"偏积极", "偏消极", "情绪激动", "语气平静", "自信主导", "顺从害羞"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("中性情绪不应出现提示 %q：%q", unwanted, got)
+		}
+	}
+
+	// 情绪字符串两侧空白应被忽略，且不再产生空指令。
+	if got := formatEmotionDirective(PlannerDecision{Emotion: "  "}); got != "" {
+		t.Fatalf("仅空白情绪不应注入指令，得到 %q", got)
 	}
 }

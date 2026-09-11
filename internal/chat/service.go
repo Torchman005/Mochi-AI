@@ -36,7 +36,6 @@ type Service struct {
 	shortMemory memory.Store
 	longMemory  *memory.ServiceMemory
 	runtimes    *RuntimeManager
-	sender      *SendService
 	taskSubmit  TaskSubmitter
 }
 
@@ -61,7 +60,6 @@ func NewService(
 		shortMemory: memStore,
 		longMemory:  longMemory,
 		runtimes:    NewRuntimeManager(memStore),
-		sender:      NewSendService(database, cfg.Chat),
 	}
 }
 

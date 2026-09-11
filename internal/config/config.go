@@ -86,6 +86,13 @@ type ChatConfig struct {
 	MaxReplyChars                 int     `json:"max_reply_chars"`
 	SplitMaxChars                 int     `json:"split_max_chars"`
 	AllowTypoSimulation           bool    `json:"allow_typo_simulation"`
+
+	// ThinkingPauseMinMs / ThinkingPauseMaxMs 控制「首句之前的反应停顿」。
+	// 真人听到问题后会有一个自然的思考间隙（约 0.3–1.2s）；零延迟会造成"终端回显"式的机器感。
+	// 仅作用于第一句（后续句子保持流式，不叠加延迟），且可被 context 取消（用户打断时不阻塞）。
+	// 两者都为 0（或未配置）时表示不启用；MaxMs 小于 MinMs 时会被归一化为与 MinMs 相等。
+	ThinkingPauseMinMs int `json:"thinking_pause_min_ms"`
+	ThinkingPauseMaxMs int `json:"thinking_pause_max_ms"`
 }
 
 // MemoryConfig stores conversation memory settings.
@@ -162,6 +169,10 @@ func DefaultConfig() *Config {
 			MaxReplyChars:                 1000,
 			SplitMaxChars:                 90,
 			AllowTypoSimulation:           false,
+			// 反应停顿：默认开启一个克制的区间。真人回答通常有 0.3–1s 的思考间隙；
+			// 设为 0 可完全关闭（此时行为与旧版一致）。
+			ThinkingPauseMinMs: 250,
+			ThinkingPauseMaxMs: 900,
 		},
 		Memory: MemoryConfig{
 			MaxTurns:     20,
@@ -284,13 +295,41 @@ func (c *Config) SetFilePath(p string) {
 func (c *Config) ApplyJSON(data []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	temp := *c
+	// 注意：Config 内含 sync.RWMutex，**不能**做结构体整体复制（go vet copylocks），
+	// 因此这里从零值开始逐字段装配：先拷入当前值作为反序列化基底，再应用新 JSON。
+	temp := Config{}
+	temp.ActiveProvider = c.ActiveProvider
+	temp.Providers = c.Providers
+	temp.App = c.App
+	temp.Chat = c.Chat
+	temp.Memory = c.Memory
+	temp.Speech = c.Speech
+	temp.Vision = c.Vision
+	temp.ASR = c.ASR
+	temp.Services = c.Services
+	temp.LogLevel = c.LogLevel
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
 	temp.filePath = c.filePath
-	*c = temp
+	// 回写业务字段（不触碰锁与 filePath）。
+	c.ApplyFrom(&temp)
 	return c.saveLocked()
+}
+
+// ApplyFrom 把另一份配置的业务字段拷贝到当前配置（**不含** mu 与 filePath），调用方负责加锁。
+// 新增 Config 字段时必须同步补到这里；TestApplyFromCoversAllFields 会在遗漏时报错。
+func (c *Config) ApplyFrom(src *Config) {
+	c.ActiveProvider = src.ActiveProvider
+	c.Providers = src.Providers
+	c.App = src.App
+	c.Chat = src.Chat
+	c.Memory = src.Memory
+	c.Speech = src.Speech
+	c.Vision = src.Vision
+	c.ASR = src.ASR
+	c.Services = src.Services
+	c.LogLevel = src.LogLevel
 }
 
 // SetLogLevel 设置日志等级并落盘（DEBUG|INFO|WARN|ERROR）。
