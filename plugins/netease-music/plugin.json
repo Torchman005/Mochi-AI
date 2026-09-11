@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0",
+  "name": "netease-music",
+  "displayName": "NetEase Music",
+  "description": "Search and play NetEase Cloud Music through a local api-enhanced service (NeteaseCloudMusicApi). Speak or type “播放 晴天” to queue a song; the desktop pet plays the returned audio URL and reports progress to the chat.",
+  "version": "0.2.0",
+  "author": "Yuyu Mind",
+  "entry": "main.js",
+  "runtime": "node",
+  "permissions": ["network.local", "audio.playback"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiBaseUrl": { "type": "string", "description": "Local Netease api-enhanced base URL (default http://127.0.0.1:3000)." },
+      "timeoutSeconds": { "type": "integer", "description": "HTTP request timeout in seconds." },
+      "cookie": { "type": "string", "description": "Optional Netease login cookie (MUSIC_U=...) for restricted tracks." },
+      "realIP": { "type": "string", "description": "Optional realIP hint for the api server (often useful for VIP-check bypass tests)." },
+      "defaultLimit": { "type": "integer", "description": "Default search result count." },
+      "defaultQuality": { "type": "string", "enum": ["standard", "higher", "exhigh", "lossless"], "description": "Song URL quality requested via /song/url/v1." },
+      "openPlaybackUrl": { "type": "boolean", "description": "Return playbackUrl so the app plays the audio (must stay true for the desktop pet to sound)." },
+      "autoNext": { "type": "boolean", "description": "自动连播：播完一首后前端继续播下一首（默认 true）。" },
+      "queueSize": { "type": "integer", "description": "播放队列/相似歌曲补歌上限，1-100（默认 20）。" }
+    }
+  },
+  "actions": [
+    {
+      "name": "control",
+      "description": "点歌/播放控制（网易云音乐）。支持自然语言 message：'播放 <歌名/歌手>'、'放一首 <歌名>'、'搜索 <关键词>'、'播放 1'(播最近搜索结果第 1 首)、'下一首'、'上一首'、'暂停'、'继续'、'停止'、'歌词'、'状态'；也可给结构化参数 intent/query/songId。返回 message + metadata(playbackUrl/playbackAction/track/autoNext/queue) 供前端播放与自动连播。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "description": "自然语言指令（推荐，例如 '播放 晴天'）" },
+          "intent": { "type": "string", "enum": ["search", "play", "next", "prev", "pause", "resume", "stop", "lyrics", "status"], "description": "结构化意图；与 message 同时给出时以 message 解析结果为准" },
+          "query": { "type": "string", "description": "搜索/点歌关键词" },
+          "songId": { "type": "integer", "description": "直接指定歌曲 ID 播放/取歌词" },
+          "limit": { "type": "integer", "description": "搜索结果条数上限" },
+          "quality": { "type": "string", "description": "音质：standard/higher/exhigh/lossless" }
+        }
+      }
+    }
+  ],
+  "tools": [
+    {
+      "name": "control_netease_music",
+      "description": "控制网易云音乐播放。可做：搜索歌曲(给 query)、点播(给 songId 或 query+intent=play)、下一首/上一首、暂停/继续/停止/取歌词/查询当前播放。纯文本调用即可：如调用参数 {\"message\":\"播放 周杰伦 晴天\"}。返回 JSON 文本：message 供回复用户，track 为曲目信息，metadata.playbackUrl/playbackAction 供前端播放，metadata.autoNext 表示是否还有下一首。仅当用户表达想听/搜歌/控制音乐时才用。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "description": "自然语言指令（推荐）" },
+          "intent": { "type": "string", "description": "search/play/next/prev/pause/resume/stop/lyrics/status" },
+          "query": { "type": "string", "description": "关键词" },
+          "songId": { "type": "integer", "description": "歌曲 ID" },
+          "limit": { "type": "integer" },
+          "quality": { "type": "string" }
+        }
+      }
+    }
+  ]
+}
