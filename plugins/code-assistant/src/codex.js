@@ -4,6 +4,7 @@
 const { spawn, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { StringDecoder } = require('string_decoder');
 
 function emit(event, data) {
   // 事件行：{"event": "...", "data": {...}}。宿主 sidecar 读循环会把它路由给进度回调。
@@ -57,10 +58,12 @@ function incrementalTask(task, config) {
 
 function jsonEventText(event) {
   if (!event || typeof event !== 'object') return '';
+  const item = event.item || {};
   const type = event.type || event.event || event.name || event.msg || '';
-  const status = event.status || event.state || '';
-  const message = event.message || event.summary || event.text || event.delta || '';
-  return [type, status, message].filter(Boolean).map(String).join(' · ');
+  const status = item.status || event.status || event.state || '';
+  const message = item.text || event.error?.message || event.message || event.summary || event.text || event.delta || '';
+  const files = (Array.isArray(item.changes) ? item.changes : []).map((change) => change.path).filter(Boolean).join(', ');
+  return [type, item.type, status, message, files].filter((value) => typeof value === 'string' && value).join(' · ');
 }
 
 function processOutputLine(rawLine, state, cwd, emitReviewStatus) {
@@ -69,25 +72,35 @@ function processOutputLine(rawLine, state, cwd, emitReviewStatus) {
   try {
     const event = JSON.parse(s);
     const eventText = jsonEventText(event);
-    if (eventText) state.humanOut += eventText + '\n';
-    if (eventText && patchPattern.test(eventText)) {
-      const key = eventText.slice(0, 240);
+    const item = event?.item || {};
+    if (item.type === 'agent_message' && event.type === 'item.completed' && typeof item.text === 'string') {
+      state.humanOut += item.text + '\n';
+    }
+    if (event?.type === 'error' || event?.type === 'turn.failed' || item.type === 'error') {
+      state.lastError = event.error?.message || event.message || item.message || eventText;
+      if (event.type === 'turn.failed') state.failed = true;
+      emit('agent_progress', { message: 'Codex 连接或执行异常：' + state.lastError, cwd, level: 'error' });
+    }
+    const patchEvent = item.type === 'file_change' || patchPattern.test(item.tool || item.name || '');
+    if (patchEvent) {
+      const key = JSON.stringify([event.type, item.id, item.status, item.changes]);
       if (key !== state.lastPatchEvent) {
         state.lastPatchEvent = key;
         emit('agent_progress', {
-          message: 'Codex 正在应用代码改动：' + key.slice(0, 180),
+          message: 'Codex 文件变更：' + eventText.slice(0, 240),
           cwd,
           codexEvent: event,
         });
         emitReviewStatus();
       }
     }
-    if (eventText && stepPattern.test(eventText) && eventText.length < 300) {
+    if (!patchEvent && eventText && stepPattern.test(eventText) && eventText.length < 300) {
       state.steps.push(eventText);
       emit('agent_progress', { message: eventText.slice(0, 200) });
     }
     return;
   } catch (_) { /* plain text output */ }
+  state.humanOut += s + '\n';
   if (stepPattern.test(s) && s.length < 300) {
     state.steps.push(s);
     emit('agent_progress', { message: s.slice(0, 200) });
@@ -100,7 +113,7 @@ function runCodex(task, cwd, config, hooks = {}) {
     const args = buildArgs(task, cwd, config);
     const script = detectCodexNodeScript();
     const useNode = script && cmd === 'codex';
-    const spawnCmd = useNode ? 'node' : cmd;
+    const spawnCmd = useNode ? process.execPath : cmd;
     const spawnArgs = useNode ? [script].concat(args) : args;
     const shell = !useNode && process.platform === 'win32';
 
@@ -109,26 +122,35 @@ function runCodex(task, cwd, config, hooks = {}) {
     const child = spawn(spawnCmd, spawnArgs, { cwd, shell, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', errOut = '';
     let stdoutBuffer = '';
-    const outputState = { humanOut: '', steps: [], lastPatchEvent: '' };
+    const decoder = new StringDecoder('utf8');
+    const outputState = { humanOut: '', steps: [], lastPatchEvent: '', lastError: '', failed: false };
     let lastReviewStatus = '';
     const emitReviewStatus = () => {
       if (typeof hooks.reviewStatus !== 'function') return;
       try {
         const status = hooks.reviewStatus() || {};
-        const key = JSON.stringify({ count: status.count || 0, files: (status.files || []).map((f) => `${f.kind}:${f.path}`) });
+        const key = JSON.stringify({ count: status.count || 0, files: (status.files || []).map((f) => {
+          // File names alone do not change when the next patch edits the same file.
+          let version = null;
+          try {
+            const stat = fs.statSync(path.resolve(cwd, f.path));
+            version = [stat.size, stat.mtimeMs, stat.ctimeMs];
+          } catch (_) { /* deleted or not yet written */ }
+          return [f.kind, f.path, f.oldPath, version];
+        }) });
         if (key === lastReviewStatus) return;
         lastReviewStatus = key;
         emit('agent_progress', {
           message: `VS Code 实时评审：${status.count || 0} 个文件有未暂存改动`,
           cwd,
-          review: status,
+          review: { ...status, files: (status.files || []).slice(0, 20) },
         });
       } catch (_) { /* ignore status polling errors */ }
     };
     const reviewTimer = setInterval(emitReviewStatus, Math.max(1000, Number(config.review_poll_ms || 2000)));
     emitReviewStatus();
     child.stdout.on('data', (d) => {
-      const text = d.toString();
+      const text = decoder.write(d);
       out += text;
       emitReviewStatus();
       stdoutBuffer += text;
@@ -145,7 +167,7 @@ function runCodex(task, cwd, config, hooks = {}) {
       clearInterval(reviewTimer);
       if (stdoutBuffer) processOutputLine(stdoutBuffer, outputState, cwd, emitReviewStatus);
       emitReviewStatus();
-      resolve({ err: Object.assign(new Error('timeout'), { code: 'ETIMEOUT' }), stdout: outputState.humanOut || out, rawStdout: out, stderr: errOut, steps: outputState.steps });
+      resolve({ err: Object.assign(new Error('timeout'), { code: 'ETIMEOUT' }), stdout: outputState.humanOut || out, rawStdout: out, stderr: errOut, steps: outputState.steps, lastError: outputState.lastError });
     }, config.timeout_ms || 600000);
 
     child.on('error', (e) => {
@@ -158,10 +180,11 @@ function runCodex(task, cwd, config, hooks = {}) {
     child.on('close', (code) => {
       clearTimeout(timer);
       clearInterval(reviewTimer);
+      stdoutBuffer += decoder.end();
       if (stdoutBuffer) processOutputLine(stdoutBuffer, outputState, cwd, emitReviewStatus);
       emitReviewStatus();
-      const err = code === 0 ? null : Object.assign(new Error('exit ' + code), { code });
-      resolve({ err, stdout: outputState.humanOut || out, rawStdout: out, stderr: errOut, steps: outputState.steps });
+      const err = code === 0 && !outputState.failed ? null : Object.assign(new Error(outputState.lastError || 'exit ' + code), { code });
+      resolve({ err, stdout: outputState.humanOut || out, rawStdout: out, stderr: errOut, steps: outputState.steps, lastError: outputState.lastError });
     });
   });
 }

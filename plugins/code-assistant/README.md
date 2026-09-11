@@ -74,17 +74,23 @@ codex 的改动默认会保留为「相对基线的未暂存改动」，所以�
 
 实时显示的边界：VS Code 只能显示已经写入磁盘的文件变更，不能显示模型还在推理但尚未 apply/write 的代码。插件默认会启用 `codex exec --json` 并要求 Codex 小步落盘；如果 Codex CLI 仍选择最后一次性应用大补丁，VS Code 也只能在那次补丁落盘后显示。
 
-如果 VS Code 打开了但没有变更，先看桌宠日志里的 `VS Code 实时评审：N 个文件有未暂存改动` 和 `Codex 正在应用代码改动`：
+如果 VS Code 打开了但没有变更，先看桌宠日志里的 `VS Code 实时评审：N 个文件有未暂存改动` 和 `Codex 文件变更`：
 
 - `cwd` 必须等于 VS Code 打开的项目根。
 - `N=0` 说明 Codex 还没把文件写到磁盘，或实际任务没有产生文件改动。
 - `N>0` 但 VS Code 没显示，通常是 VS Code 打开的不是日志里的 `cwd`，或源代码管理视图当前选中了另一个仓库。
+
+进度解析读取 `item.type=file_change` 与 `item.changes`，同一文件的后续补丁也会通知。轮询会比较文件大小和修改时间，检查全部变更文件（事件展示最多 20 项）。总结取 `agent_message` 的正文，不再把 `item.completed` 等协议名称当成总结。
+
+看到 `Codex 连接或执行异常` 时，应先检查 Codex 连接；反复 502、连接拒绝或重连通常发生在写盘之前。插件继承本机 Codex 的 provider 配置，包括自定义本地转发地址；插件 `model` 留空不代表自动使用官方连接。超时结果会附带最近一次连接错误。全局连接配置不会被插件自动切换。
 
 > 目录不是 git 仓库时会在 `run_agent` 时自动 `git init` 并创建一个空基线提交。为保护手动改动，默认要求目标项目在运行前没有未提交变更。
 
 实现要点：不依赖 VS Code 私有扩展 API，而是复用标准 git 工作区状态。`list_changes` 读取 `git diff --name-status -M -z HEAD`；`show_diff` 读取 `git diff HEAD`；`open_changes` 聚焦真实工作区，让 VS Code SCM 自己提供文件级、块级和选区级操作。目录型变更不会再伪装成文件 diff，避免 VS Code 打开后空白。
 
 ## 手动测试
+
+事件解析回归测试（不调用模型）：`node --test plugins/code-assistant/src/codex.test.js`。
 
 ```bash
 node plugins/code-assistant/src/index.js

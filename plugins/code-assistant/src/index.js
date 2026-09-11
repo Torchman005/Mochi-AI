@@ -97,7 +97,7 @@ async function handleTool(name, args) {
   const res = await codex.runCodex(task, cwd, config, {
     reviewStatus: () => {
       const files = git.reviewFiles(cwd).map(compactChange);
-      return { cwd, mode: review.mode, count: files.length, files: files.slice(0, 20) };
+      return { cwd, mode: review.mode, count: files.length, files };
     },
   });
   if (res.err) {
@@ -105,7 +105,7 @@ async function handleTool(name, args) {
       ok: false,
       cwd,
       exitCode: res.err.code === 'ETIMEOUT' ? null : 1,
-      note: res.err.code === 'ETIMEOUT' ? 'codex 运行超时' : String(res.err.message || res.err),
+      note: res.err.code === 'ETIMEOUT' ? 'codex 运行超时' + (res.lastError ? '：' + res.lastError : '') : String(res.err.message || res.err),
       output: truncate((res.stdout || '') + '\n' + (res.stderr || ''), 8000),
       steps: res.steps,
       mode: review.mode,
